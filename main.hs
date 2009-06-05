@@ -24,8 +24,17 @@ import VBO
 import Models
 import Texture
 
-main = do 
-    initialWindowSize $= Size 600 600
+data AppState = State {
+        angle :: Double,
+        width :: Double,
+        height :: Double,
+        dir :: Double
+    }
+
+initState = State {angle=0, width=600, height=600, dir=1.0}
+
+main = do
+    initialWindowSize $= Size 720 480
     initialDisplayMode $= [
             RGBAMode,
             DoubleBuffered,
@@ -33,59 +42,61 @@ main = do
             WithStencilBuffer,
             Multisampling
         ]
-    initialDisplayCapabilities $= [ With DisplaySamples ] -- not that freeglut 2.4 has this but eh
+    initialDisplayCapabilities $= [
+            With DisplaySamples, -- not that freeglut 2.4 has this but eh
+            With DisplayDouble
+        ]
 
     (progname, _) <- getArgsAndInitialize
-    wnd <- createWindow "Hello World"
+    wnd <- createWindow "Tomtegebra"
 
-    direction <- newIORef 1.0
-    time <- newIORef 0.0
-    width <- newIORef 600
-    height <- newIORef 600
-
-    hex <- createHexModel
-    tex <- loadTextureFromPNG "tex.png"
+    state <- newIORef initState
 
     clearColor $= Color4 1 1 1 1
+    clearAccum $= Color4 0 0 0 0
 
+    clear [ColorBuffer]
     multisample $= Enabled
 
-    displayCallback $= display width height hex tex time
-    reshapeCallback $= Just (reshape width height)
-    keyboardMouseCallback $= Just (keyboardMouse direction)
+    tex <- loadTextureFromPNG "tex.png"
+    he <- createHexModel
+    let hex = he {textures = [tex]} in do
 
-    addTimerCallback 24 $ timerProc direction time (display width height hex tex)
+    displayCallback $= display state hex
+    reshapeCallback $= Just (reshape state)
+    keyboardMouseCallback $= Just (keyboardMouse state)
+
+    addTimerCallback 24 $ timerProc state (display state hex)
 
     mainLoop
     destroyWindow wnd
 
 exitLoop = throwIO $ ExitException ExitSuccess
 
-timerProc direction time m = do
-    d <- get direction
-    t <- get time
+timerProc state m = do
+    st <- get state
+    let t = angle st
+        d = dir st in do
     t0 <- getClockTime
-    m time
+    m
     t1 <- getClockTime
     let elapsed = fromInteger (elapsedMs t0 t1) :: Int
-    time $= t + d * 0.016
-    addTimerCallback (max 1 (16-elapsed)) (timerProc direction time m)
+    st <- get state
+    state $= st {angle = t + d * 0.016}
+    addTimerCallback (max 1 (16-elapsed)) (timerProc state m)
 
 elapsedMs t0 t1 = (tdPicosec $ diffClockTimes t1 t0) `quotInteger` 1000000000
 
-display width height hex tex time = do
-    t <- get time
-    w <- get width
-    h <- get height
-    blend $= Enabled
-    blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
-    color $ (Color4 1 1 1 0.2 :: Color4 GLfloat)
-    texture Texture2D $= Disabled
-    fillScreen
-    blend $= Disabled
+display state hex = do
+    st <- get state
+    let t = angle st
+        w = width st
+        h = height st in do
+    clear [ColorBuffer]
+    color $ (Color4 1 1 1 1 :: Color4 GLfloat)
     let m = axleMatrix w h t in do
         glLoadMatrix m
-        drawModel hex (Just tex)
+        drawModel hex
         mapM_ (\i -> do
                 glLoadMatrix $ matrixMul m (tm i)
                 drawInstance hex ) [1..6]
@@ -95,22 +106,32 @@ display width height hex tex time = do
           cameraMatrix w h = matrixMul (p w h) l
           tm i = translationMatrix [1.9*cos (2*pi*i/6), 1.9*sin (2*pi*i/6), 0]
           p w h = perspectiveMatrix 30 (w/h) 0.1 100
-          l = lookAtMatrix [4.0, 1.0, 3.0] [0.0, 0.0, 0.0] [0, 1, 0]
+          l = lookAtMatrix [4.0, 1.0, 3.0] [-1.0, 0.0, 0.0] [0, 1, 0]
 
-reshape width height s@(Size w h) = do
+
+reshape state s@(Size w h) = do
     viewport $= (Position 0 0, s)
-    width $= fromIntegral w
-    height $= fromIntegral h
-    clear [ColorBuffer]
+    st <- get state
+    state $= st {width = fromIntegral w, height = fromIntegral h}
     postRedisplay Nothing
 
-keyboardMouse direction key state modifiers position = do
-    keyboardAct direction key state
 
-keyboardAct dir (SpecialKey KeyLeft) Down = dir $= (-1.0)
-keyboardAct dir (SpecialKey KeyRight) Down = dir $= 1.0
-keyboardAct dir (Char 'q') Down = exitLoop
-keyboardAct dir (Char ' ') Down = dir $= 0.0
+keyboardMouse appstate key state modifiers position = do
+    keyboardAct appstate key state
+
+keyboardAct st (SpecialKey KeyLeft) Down = do
+    sta <- get st
+    st $= sta {dir = -1.0}
+    
+keyboardAct st (SpecialKey KeyRight) Down = do
+    sta <- get st
+    st $= sta {dir = 1.0}
+    
+keyboardAct st (Char 'q') Down = exitLoop
+keyboardAct st (Char ' ') Down = do
+    sta <- get st
+    st $= sta {dir = 0.0}
+
 keyboardAct _ _ _ = return ()
 
 

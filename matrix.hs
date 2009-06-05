@@ -3,6 +3,9 @@ module Matrix where
 import Data.List
 import Graphics.Rendering.OpenGL
 
+type Matrix4x4 = [Vec4]
+type Vec4 = [GLdouble]
+
 -- Matrices are in the OpenGL orientation:
 -- "translation column is the last 4 elements"
 

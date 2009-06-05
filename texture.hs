@@ -6,15 +6,12 @@ import Foreign.Ptr
 import Graphics.Rendering.OpenGL
 import Graphics.Rendering.Cairo hiding (rotate, identityMatrix)
 
-useTexture _ Nothing = do
-    clientState TextureCoordArray $= Disabled
-    texture Texture2D $= Disabled
-
-useTexture texCoords (Just tex) = do
-    clientState TextureCoordArray $= Enabled
-    texture Texture2D $= Enabled
-    textureBinding Texture2D $= Just tex
-    arrayPointer TextureCoordArray $= texCoords
+useTexture textures = do
+    mapM_ (\(tex, i) -> do
+        texture Texture2D $= Enabled
+        activeTexture $= TextureUnit i
+        textureBinding Texture2D $= Just tex) $ zip textures [0..]
+    activeTexture $= TextureUnit 0
 
 loadTextureFromPNG filepath = do
     fex <- doesFileExist filepath
