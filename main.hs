@@ -23,15 +23,29 @@ import Matrix
 import VBO
 import Models
 import Texture
+import Game
 
 data AppState = State {
+        equation :: Rule,
+        cursorLocation :: Int,
+        inventory :: ProofInventory,
+        inventoryIndex :: Int,
+        equationCompleted :: Bool,
+
         angle :: Double,
         width :: Double,
         height :: Double,
         dir :: Double
     }
 
-initState = State {angle=0, width=600, height=600, dir=1.0}
+initState = State {
+                equation = (A `o` (B `o` C)) `eq` ((A `o` B) `o` C),
+                cursorLocation = 0,
+                inventory = [(A `o` B) `eq` ((A `plus` B) `plus` Literal 1)] ++ (abelianGroup "+"),
+                inventoryIndex = 0,
+                equationCompleted = False,
+
+                angle=0, width=600, height=600, dir=1.0}
 
 main = do
     initialWindowSize $= Size 720 480
@@ -73,6 +87,7 @@ main = do
 
 exitLoop = throwIO $ ExitException ExitSuccess
 
+timerProc :: IORef AppState -> IO () -> IO ()
 timerProc state m = do
     st <- get state
     let t = angle st
@@ -85,8 +100,10 @@ timerProc state m = do
     state $= st {angle = t + d * 0.016}
     addTimerCallback (max 1 (16-elapsed)) (timerProc state m)
 
+elapsedMs :: ClockTime -> ClockTime -> Integer
 elapsedMs t0 t1 = (tdPicosec $ diffClockTimes t1 t0) `quotInteger` 1000000000
 
+display :: IORef AppState -> Model -> IO ()
 display state hex = do
     st <- get state
     let t = angle st
@@ -101,6 +118,9 @@ display state hex = do
                 glLoadMatrix $ matrixMul m (tm i)
                 drawInstance hex ) [1..6]
     bindBuffer ArrayBuffer $= Nothing
+    if equationCompleted st
+        then drawVictory
+        else drawLevel st
     swapBuffers
     where axleMatrix w h t = matrixMul (cameraMatrix w h) $ rotationMatrix (-t) [0.0, 0.3, 1.0]
           cameraMatrix w h = matrixMul (p w h) l
@@ -108,6 +128,40 @@ display state hex = do
           p w h = perspectiveMatrix 30 (w/h) 0.1 100
           l = lookAtMatrix [4.0, 1.0, 3.0] [-1.0, 0.0, 0.0] [0, 1, 0]
 
+drawVictory :: IO ()
+drawVictory = putStrLn "VICTORY!!! HUZZAH!!! BANZAI!!!"
+
+drawLevel :: AppState -> IO ()
+drawLevel st =
+    let equ = equation st
+        cloc = cursorLocation st
+        inv = inventory st
+        invIdx = inventoryIndex st in do
+    drawInventory (findMatchingEqualitiesAt cloc (toExpr equ) inv) invIdx
+    drawEquation equ cloc
+
+drawEquation :: Rule -> Int -> IO ()
+drawEquation rule idx = drawExpr (toExpr rule) idx
+
+drawExpr :: Expr -> Int -> IO ()
+drawExpr expr idx = do
+    putStrLn "\nEquation:"
+    putStrLn $ show expr
+    putStrLn $ show (subExprAt idx expr)
+
+drawInventory :: ProofInventory -> Int -> IO ()
+drawInventory inventory idx =
+    let idx' = idx `mod` length inventory in do
+    putStrLn "\nInventory:"
+    mapM_ (putStrLn.show) $ take idx' inventory
+    putStrLn $ "--" ++ show (inventory !! idx')
+    mapM_ (putStrLn.show) $ drop (idx'+1) inventory
+
+toExpr :: Rule -> Expr
+toExpr (Rule (a,b)) = Expr ("=", a, b)
+
+toRule :: Expr -> Rule
+toRule (Expr ("=", a, b)) = Rule (a, b)
 
 reshape state s@(Size w h) = do
     viewport $= (Position 0 0, s)
@@ -121,18 +175,38 @@ keyboardMouse appstate key state modifiers position = do
 
 keyboardAct st (SpecialKey KeyLeft) Down = do
     sta <- get st
-    st $= sta {dir = -1.0}
-    
+    st $= sta { cursorLocation = (cursorLocation sta - 1) `mod` ruleLength (equation sta) }
+
 keyboardAct st (SpecialKey KeyRight) Down = do
     sta <- get st
-    st $= sta {dir = 1.0}
-    
-keyboardAct st (Char 'q') Down = exitLoop
+    st $= sta { cursorLocation = (cursorLocation sta + 1) `mod` ruleLength (equation sta) }
+
+keyboardAct st (SpecialKey KeyDown) Down = do
+    sta <- get st
+    st $= sta { inventoryIndex = inventoryIndex sta + 1 }
+
+keyboardAct st (SpecialKey KeyUp) Down = do
+    sta <- get st
+    st $= sta { inventoryIndex = inventoryIndex sta - 1 }
+
 keyboardAct st (Char ' ') Down = do
     sta <- get st
-    st $= sta {dir = 0.0}
+    st $= (applyCurrentRule sta)
+
+keyboardAct st (Char 'q') Down = exitLoop
 
 keyboardAct _ _ _ = return ()
 
-
+applyCurrentRule :: AppState -> AppState
+applyCurrentRule sta =
+    sta { equation = equ,
+          cursorLocation = cursorLocation sta `mod` ruleLength equ,
+          equationCompleted = isTautology equ
+        }
+    where cloc = cursorLocation sta
+          equE = toExpr (equation sta)
+          inv = findMatchingEqualitiesAt cloc equE $ inventory sta
+          invIdx = inventoryIndex sta `mod` length inv
+          rule = inv !! invIdx
+          equ = toRule $ applyEqualityAt cloc rule equE
 
