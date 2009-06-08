@@ -22,30 +22,10 @@ import System.Time
 import Matrix
 import VBO
 import Models
-import Texture
+-- import Texture
 import Game
-
-data AppState = State {
-        equation :: Rule,
-        cursorLocation :: Int,
-        inventory :: ProofInventory,
-        inventoryIndex :: Int,
-        equationCompleted :: Bool,
-
-        angle :: Double,
-        width :: Double,
-        height :: Double,
-        dir :: Double
-    }
-
-initState = State {
-                equation = (A `o` (B `o` C)) `eq` ((A `o` B) `o` C),
-                cursorLocation = 0,
-                inventory = [(A `o` B) `eq` ((A `plus` B) `plus` Literal 1)] ++ (abelianGroup "+"),
-                inventoryIndex = 0,
-                equationCompleted = False,
-
-                angle=0, width=600, height=600, dir=1.0}
+import RenderGame
+import Algebra
 
 main = do
     initialWindowSize $= Size 720 480
@@ -66,13 +46,13 @@ main = do
 
     state <- newIORef initState
 
-    clearColor $= Color4 1 1 1 1
-    clearAccum $= Color4 0 0 0 0
+    clearColor $= Color4 0 0 0 0
 
     clear [ColorBuffer]
     multisample $= Enabled
 
-    tex <- loadTextureFromPNG "tex.png"
+    [tex] <- genObjectNames 1
+--     tex <- loadTextureFromPNG "tex.png"
     he <- createHexModel
     let hex = he {textures = [tex]} in do
 
@@ -127,41 +107,6 @@ display state hex = do
           tm i = translationMatrix [1.9*cos (2*pi*i/6), 1.9*sin (2*pi*i/6), 0]
           p w h = perspectiveMatrix 30 (w/h) 0.1 100
           l = lookAtMatrix [4.0, 1.0, 3.0] [-1.0, 0.0, 0.0] [0, 1, 0]
-
-drawVictory :: IO ()
-drawVictory = putStrLn "VICTORY!!! HUZZAH!!! BANZAI!!!"
-
-drawLevel :: AppState -> IO ()
-drawLevel st =
-    let equ = equation st
-        cloc = cursorLocation st
-        inv = inventory st
-        invIdx = inventoryIndex st in do
-    drawInventory (findMatchingEqualitiesAt cloc (toExpr equ) inv) invIdx
-    drawEquation equ cloc
-
-drawEquation :: Rule -> Int -> IO ()
-drawEquation rule idx = drawExpr (toExpr rule) idx
-
-drawExpr :: Expr -> Int -> IO ()
-drawExpr expr idx = do
-    putStrLn "\nEquation:"
-    putStrLn $ show expr
-    putStrLn $ show (subExprAt idx expr)
-
-drawInventory :: ProofInventory -> Int -> IO ()
-drawInventory inventory idx =
-    let idx' = idx `mod` length inventory in do
-    putStrLn "\nInventory:"
-    mapM_ (putStrLn.show) $ take idx' inventory
-    putStrLn $ "--" ++ show (inventory !! idx')
-    mapM_ (putStrLn.show) $ drop (idx'+1) inventory
-
-toExpr :: Rule -> Expr
-toExpr (Rule (a,b)) = Expr ("=", a, b)
-
-toRule :: Expr -> Rule
-toRule (Expr ("=", a, b)) = Rule (a, b)
 
 reshape state s@(Size w h) = do
     viewport $= (Position 0 0, s)
