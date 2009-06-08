@@ -1,12 +1,21 @@
-\documentstyle{article}
-
-\begin{document}
-
-\section{Algebra gameplay}
+{-
+{Algebra gameplay}
 
 The proof gameplay consists of subsequent stages of proving group axioms
 for the function by fiddling the axiom equation to show equality.
+-}
+module Algebra where
 
+isTautology :: Rule -> Bool
+isTautology (Rule (a,b)) = a == b
+
+isBinding :: Expr -> Rule -> Bool
+isBinding e (Rule (a,b)) = e == a || e == b
+
+opf :: Op -> Expr -> Expr -> Expr
+opf op a b = Expr (op, a, b)
+
+{-
 Group axioms main stage:
 
     Stability: a o b exists in G for all a, b in G
@@ -20,18 +29,7 @@ Group axioms main stage:
 
     Inverse element: a o a_inv = a_inv o a = 0
     Group! Enter Abelian bonus stage!
-
-\begin{code}
-module Algebra where
-
-isTautology :: Rule -> Bool
-isTautology (Rule (a,b)) = a == b
-
-isBinding :: Expr -> Rule -> Bool
-isBinding e (Rule (a,b)) = e == a || e == b
-
-opf :: Op -> Expr -> Expr -> Expr
-opf op a b = Expr (op, a, b)
+-}
 
 associativity :: Op -> Rule
 associativity op = (A `o` (B `o` C)) `eq` ((A `o` B) `o` C)
@@ -52,14 +50,14 @@ rightInverse op = (A `o` Inv (op, A)) `eq` Neutral op
 leftInverse :: Op -> Rule
 leftInverse op = (Inv (op, A) `o` A) `eq` Neutral op
               where o = opf op
-\end{code}
 
+{-
 Abelian bonus stage:
 
     Commutativity: a o b = b o a
     Abelian group! Enter ring bonus stage!
+-}
 
-\begin{code}
 commutativity :: Op -> Rule
 commutativity op = (A `o` B) `eq` (B `o` A)
                   where o = opf op
@@ -69,8 +67,8 @@ semiGroup op = magma op ++ [associativity op]
 monoid op = semiGroup op ++ [rightNeutral op, leftNeutral op]
 group op = monoid op ++ [rightInverse op, leftInverse op]
 abelianGroup op = group op ++ [commutativity op]
-\end{code}
 
+{-
 Ring bonus stage:
 
     Show bonus function to be a semigroup!
@@ -79,8 +77,8 @@ Ring bonus stage:
     a x (b o c) = (a x b) o (a x c)
     (a o b) x c = (a x c) o (b x c)
     Pseudo-ring!
+-}
 
-\begin{code}
 leftDistributivity :: Op -> Op -> Rule
 leftDistributivity opO opX = (A `x` (B `o` C)) `eq` ((A `x` B) `o` (B `x` C))
                              where o = opf opO
@@ -90,8 +88,7 @@ rightDistributivity :: Op -> Op -> Rule
 rightDistributivity opO opX = (A `x` (B `o` C)) `eq` ((A `x` B) `o` (B `x` C))
                                where o = opf opO
                                      x = opf opX
-\end{code}
-
+{-
     Neutral element for x: a x 1 = 1 x a = a
     Ring!
 
@@ -102,20 +99,19 @@ Field bonus stage:
 
     Inverse element for x in G \ {0}: a x a_inv = a_inv x a = 1
     Field! Superior! Shower of jewels!
+-}
 
-\begin{code}
 pseudoRing o x = abelianGroup o ++ semiGroup x ++
                  [leftDistributivity o x, rightDistributivity o x]
 ring o x = pseudoRing o x ++ [rightNeutral x, leftNeutral x]
 commutativeRing o x = ring o x ++ [commutativity x]
 field o x = commutativeRing o x ++ [rightInverse x, leftInverse x]
-\end{code}
-
+{-
 Whenever you show something, the equality is added to your proof inventory.
 You can use items in your proof inventory to do substitutions and other manipulations.
 You begin the game armed (in the tutorial) with +. Build it up from there.
+-}
 
-\begin{code}
 type ProofInventory = [Rule]
 
 findMatchingEqualitiesAt :: Int -> Expr -> ProofInventory -> ProofInventory
@@ -125,9 +121,8 @@ findMatchingEqualitiesAt idx expr inventory =
 matchEquality :: Expr -> Rule -> Bool
 matchEquality e (Rule (a,b)) = matchPattern a e || matchPattern b e
 
-\end{code}
-
-\section{Functions}
+{-
+{Functions}
 
 Functions are composed of explicitly parenthesized binary operators and variables.
 The names of the variables are always A and B.
@@ -138,7 +133,8 @@ would be represented as
     (+ (+ a b) 1)
     Expr (Plus, (Expr (Plus, A, B), 1)
 
-\begin{code}
+-}
+
 type Op = String
 data Expr = Expr (Op, Expr, Expr) | A | B | C | Inv (Op, Expr) | Neutral Op | Literal Int
 
@@ -160,10 +156,9 @@ instance Eq Expr where
     Neutral aop == Neutral bop = aop == bop
     Literal a == Literal b = a == b
     _ == _ = False
-\end{code}
 
-
-\section{Rules}
+{-
+{Rules}
 
 The core of the gameplay is based on rewriting equations.
 To rewrite an equation, you apply a rule to an expression.
@@ -172,8 +167,8 @@ E.g. the rule
     a o b = a + b + 1
 would be represented as
     rule = Rule ((Expr ("o", A, B)), (Expr ("+", Expr ("+", A, B), Literal 1)))
+-}
 
-\begin{code}
 type Pattern = Expr
 type Substitution = Expr
 
@@ -196,7 +191,7 @@ toExpr (Rule (a,b)) = Expr ("=", a, b)
 toRule :: Expr -> Maybe Rule
 toRule (Expr ("=", a, b)) = Just (Rule (a, b))
 toRule _ = Nothing
-\end{code}
+{-
 
 The rewriting is done by attempting to bind the pattern to a given expression,
 and on success, evaluating the substitution in that binding.
@@ -209,7 +204,7 @@ E.g. applying the above rule "a o b = a + b + 1" to "((a + b) o b)"
 would result in
     Expr ("+", Expr ("+", Expr ("+", A, B), B), Literal 1)
 
-\begin{code}
+-}
 applyRule :: Rule -> Expr -> Expr
 applyRule (Rule (pat, sub)) expression =
     maybe expression id (evalExpr binding sub)
@@ -289,9 +284,8 @@ a `plus` b = Expr ("+", a, b)
 a `o` b = Expr ("o", a, b)
 a `eq` b = Rule (a, b)
 
-\end{code}
-
-\section{Indexing}
+{-
+{Indexing}
 
 To apply a rewrite rule to a particular place in an equation, you need to be
 able to index the symbols in the equation from left to right.
@@ -300,8 +294,8 @@ E.g.
     applyRuleAt 1 ((A `plus` B) `eq` (A `o` B)) ((A `plus` Literal 1) `plus` B)
 would result in
     ((a o 1) + b) instead of ((a + 1) o b)
+-}
 
-\begin{code}
 applyRuleAt :: Int -> Rule -> Expr -> Expr
 applyRuleAt idx rule expr =
     outerMapExprWithIndex (\e i -> if i == idx then applyRule rule e else e) expr
@@ -309,7 +303,7 @@ applyRuleAt idx rule expr =
 applyEqualityAt :: Int -> Rule -> Expr -> Expr
 applyEqualityAt idx rule expr =
     outerMapExprWithIndex (\e i -> if i == idx then applyEquality rule e else e) expr
-\end{code}
+{-
 
 Doing the indexed rule application with an outer map works, but isn't very
 pretty or effective. The outer map can also be put into an infinite loop
@@ -318,7 +312,7 @@ pretty or effective. The outer map can also be put into an infinite loop
 An alternative way would be to have a list presentation for the expressions and
 work with them. Or mapAtIndex.
 
-\begin{code}
+-}
 
 subExprAt :: Int -> Expr -> Maybe Expr
 subExprAt idx expr = fst $ subExprAt' expr idx 0
@@ -357,8 +351,3 @@ outerMapExprWithIndex' f (Inv (o,e)) c =
         x -> outerMapExprWithIndex' f x c'
 
 outerMapExprWithIndex' f x c = (c+1, f x c)
-
-\end{code}
-
-
-\end{document}
