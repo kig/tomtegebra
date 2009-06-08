@@ -100,6 +100,13 @@ Field bonus stage:
     Inverse element for x in G \ {0}: a x a_inv = a_inv x a = 1
     Field! Superior! Shower of jewels!
 
+\begin{code}
+pseudoRing o x = abelianGroup o ++ semiGroup x ++
+                 [leftDistributivity o x, rightDistributivity o x]
+ring o x = pseudoRing o x ++ [rightNeutral x, leftNeutral x]
+commutativeRing o x = ring o x ++ [commutativity x]
+field o x = commutativeRing o x ++ [rightInverse x, leftInverse x]
+\end{code}
 
 Whenever you show something, the equality is added to your proof inventory.
 You can use items in your proof inventory to do substitutions and other manipulations.
@@ -183,8 +190,9 @@ reverseRule (Rule (a, b)) = Rule (b, a)
 toExpr :: Rule -> Expr
 toExpr (Rule (a,b)) = Expr ("=", a, b)
 
-toRule :: Expr -> Rule
-toRule (Expr ("=", a, b)) = Rule (a, b)
+toRule :: Expr -> Maybe Rule
+toRule (Expr ("=", a, b)) = Just (Rule (a, b))
+toRule _ = Nothing
 \end{code}
 
 The rewriting is done by attempting to bind the pattern to a given expression,

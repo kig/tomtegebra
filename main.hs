@@ -86,6 +86,7 @@ elapsedMs t0 t1 = (tdPicosec $ diffClockTimes t1 t0) `quotInteger` 1000000000
 display :: IORef AppState -> Model -> IO ()
 display state hex = do
     st <- get state
+    if gameOver st then exitLoop else return ()
     let t = angle st
         w = width st
         h = height st in do
@@ -98,9 +99,7 @@ display state hex = do
                 glLoadMatrix $ matrixMul m (tm i)
                 drawInstance hex ) [1..6]
     bindBuffer ArrayBuffer $= Nothing
-    if equationCompleted st
-        then drawVictory
-        else drawLevel st
+    drawLevel st
     swapBuffers
     where axleMatrix w h t = matrixMul (cameraMatrix w h) $ rotationMatrix (-t) [0.0, 0.3, 1.0]
           cameraMatrix w h = matrixMul (p w h) l
@@ -115,43 +114,30 @@ reshape state s@(Size w h) = do
     postRedisplay Nothing
 
 
-keyboardMouse appstate key state modifiers position = do
-    keyboardAct appstate key state
+keyboardMouse :: IORef AppState -> Key -> KeyState -> Modifiers -> Position -> IO ()
+keyboardMouse appstate key Down modifiers position = keyDown appstate key
+keyboardMouse appstate key Up modifiers position = keyUp appstate key
 
-keyboardAct st (SpecialKey KeyLeft) Down = do
-    sta <- get st
-    st $= sta { cursorLocation = (cursorLocation sta - 1) `mod` ruleLength (equation sta) }
+keyDown :: IORef AppState -> Key -> IO ()
+keyDown st (SpecialKey KeyLeft) = mapRef moveCursorLeft st
+keyDown st (SpecialKey KeyRight) = mapRef moveCursorRight st
 
-keyboardAct st (SpecialKey KeyRight) Down = do
-    sta <- get st
-    st $= sta { cursorLocation = (cursorLocation sta + 1) `mod` ruleLength (equation sta) }
+keyDown st (SpecialKey KeyDown) = mapRef scrollInventoryDown st
+keyDown st (SpecialKey KeyUp) = mapRef scrollInventoryUp st
 
-keyboardAct st (SpecialKey KeyDown) Down = do
-    sta <- get st
-    st $= sta { inventoryIndex = inventoryIndex sta + 1 }
+keyDown st (Char ' ') = flip mapRef st (\sta ->
+    let sta' = applyCurrentRule sta in
+    if equationCompleted sta'
+        then nextEquation sta'
+        else sta')
 
-keyboardAct st (SpecialKey KeyUp) Down = do
-    sta <- get st
-    st $= sta { inventoryIndex = inventoryIndex sta - 1 }
+keyDown st (Char 'q') = exitLoop
+keyDown _ _ = return ()
 
-keyboardAct st (Char ' ') Down = do
-    sta <- get st
-    st $= (applyCurrentRule sta)
+keyUp :: IORef AppState -> Key -> IO ()
+keyUp _ _ = return ()
 
-keyboardAct st (Char 'q') Down = exitLoop
-
-keyboardAct _ _ _ = return ()
-
-applyCurrentRule :: AppState -> AppState
-applyCurrentRule sta =
-    sta { equation = equ,
-          cursorLocation = cursorLocation sta `mod` ruleLength equ,
-          equationCompleted = isTautology equ
-        }
-    where cloc = cursorLocation sta
-          equE = toExpr (equation sta)
-          inv = findMatchingEqualitiesAt cloc equE $ inventory sta
-          invIdx = inventoryIndex sta `mod` length inv
-          rule = inv !! invIdx
-          equ = toRule $ applyEqualityAt cloc rule equE
-
+-- mapRef :: IORef a -> (a -> a) -> IO ()
+mapRef f a = do
+    v <- get a
+    a $= f v
