@@ -27,6 +27,7 @@ import Game
 import RenderGame
 import Algebra
 
+main :: IO ()
 main = do
     initialWindowSize $= Size 720 480
     initialDisplayMode $= [
@@ -65,6 +66,7 @@ main = do
     mainLoop
     destroyWindow wnd
 
+exitLoop :: IO ()
 exitLoop = throwIO $ ExitException ExitSuccess
 
 timerProc :: IORef AppState -> IO () -> IO ()
@@ -107,6 +109,7 @@ display state hex = do
           p w h = perspectiveMatrix 30 (w/h) 0.1 100
           l = lookAtMatrix [4.0, 1.0, 3.0] [-1.0, 0.0, 0.0] [0, 1, 0]
 
+reshape :: IORef AppState -> Size -> IO ()
 reshape state s@(Size w h) = do
     viewport $= (Position 0 0, s)
     st <- get state
@@ -125,11 +128,12 @@ keyDown st (SpecialKey KeyRight) = mapRef moveCursorRight st
 keyDown st (SpecialKey KeyDown) = mapRef scrollInventoryDown st
 keyDown st (SpecialKey KeyUp) = mapRef scrollInventoryUp st
 
-keyDown st (Char ' ') = flip mapRef st (\sta ->
-    let sta' = applyCurrentRule sta in
-    if equationCompleted sta'
-        then nextEquation sta'
-        else sta')
+keyDown st (Char ' ') = do
+    flip mapRef st (\sta ->
+        let sta' = applyCurrentRule sta in
+        if equationCompleted sta'
+            then nextEquation sta'
+            else sta')
 
 keyDown st (Char 'q') = exitLoop
 keyDown _ _ = return ()

@@ -12,12 +12,12 @@ module Game where
 import Algebra
 
 data AppState = State {
-        equation :: Rule,
+        equation :: CheckableRule,
         cursorLocation :: Int,
         inventory :: ProofInventory,
         inventoryIndex :: Int,
         equationCompleted :: Bool,
-        equations :: Axioms,
+        equations :: [CheckableRule],
         levels :: [Level],
 
         gameOver :: Bool,
@@ -28,17 +28,17 @@ data AppState = State {
         dir :: Double
     }
 
-type Axioms = [Rule]
+type Rules = [Rule]
 
-data Level = Level (Op, Axioms)
+data Level = Level (Op, Rules)
 
 levelO = Level ( "o", [(A `o` B) `eq` ((A `plus` B) `plus` Literal 1)] )
 
 initState :: AppState
 initState = nextLevel $ State {
-                equation = (A `o` B) `eq` (A `o` B),
+                equation = (isTrue, (A `o` B) `eq` (A `o` B)),
                 cursorLocation = 0,
-                inventory = (field "+" "*"),
+                inventory = map snd (field "+" "*"),
                 inventoryIndex = -1,
                 equationCompleted = False,
                 equations = [],
@@ -51,9 +51,9 @@ resetCursor :: AppState -> AppState
 resetCursor sta = sta { cursorLocation = 0, inventoryIndex = -1 }
 
 changeLevel :: Level -> AppState -> AppState
-changeLevel (Level (op, axioms)) sta =
+changeLevel (Level (op, rules)) sta =
     firstEquation (sta { equations = abelianGroup op,
-                         inventory = inventory sta ++ axioms })
+                         inventory = inventory sta ++ rules })
 
 nextLevel :: AppState -> AppState
 nextLevel sta =
@@ -61,7 +61,7 @@ nextLevel sta =
         [] -> sta { gameOver = True }
         x:xs -> changeLevel x sta { levels = xs }
 
-changeEquation :: Rule -> AppState -> AppState
+changeEquation :: CheckableRule -> AppState -> AppState
 changeEquation r sta = (resetCursor sta) { equation = r, equationCompleted = False }
 
 firstEquation :: AppState -> AppState
@@ -85,7 +85,7 @@ moveCursorRight = moveCursor 1
 
 moveCursor :: Int -> AppState -> AppState
 moveCursor amount sta =
-    sta { cursorLocation = (cursorLocation sta + amount) `mod` ruleLength (equation sta) }
+    sta { cursorLocation = (cursorLocation sta + amount) `mod` ruleLength (snd $ equation sta) }
 
 scrollInventoryUp :: AppState -> AppState
 scrollInventoryUp = scrollInventory (-1)
@@ -96,20 +96,20 @@ scrollInventoryDown = scrollInventory 1
 scrollInventory :: Int -> AppState -> AppState
 scrollInventory amount sta = sta { inventoryIndex = inventoryIndex sta + amount }
 
-addToInventory :: Rule -> AppState -> AppState
-addToInventory r sta = sta { inventory = inventory sta ++ [r] }
+addToInventory :: CheckableRule -> AppState -> AppState
+addToInventory r sta = sta { inventory = inventory sta ++ [snd r] }
 
 applyCurrentRule :: AppState -> AppState
 applyCurrentRule sta =
     sta { equation = equ,
-          cursorLocation = cursorLocation sta `mod` ruleLength equ,
-          equationCompleted = isTautology equ
+          cursorLocation = cursorLocation sta `mod` ruleLength (snd equ),
+          equationCompleted = checkCheckableRule equ
         }
     where cloc = cursorLocation sta
           origEq = equation sta
-          equE = toExpr origEq
-          inv = findMatchingEqualitiesAt cloc equE $ inventory sta
+          equE = toExpr (snd origEq)
+          inv = inventoryFor cloc origEq $ inventory sta
           invIdx = inventoryIndex sta `mod` length inv
           rule = inv !! invIdx
-          equ = maybe origEq id (toRule $ applyEqualityAt cloc rule equE)
+          equ = maybe origEq (\s-> (fst origEq,s)) (toRule $ applyEqualityAt cloc rule equE)
 

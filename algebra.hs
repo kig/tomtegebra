@@ -5,9 +5,10 @@ The proof gameplay consists of subsequent stages of proving group axioms
 for the function by fiddling the axiom equation to show equality.
 -}
 module Algebra where
+import Data.List hiding (group)
 
-isTautology :: Rule -> Bool
-isTautology (Rule (a,b)) = a == b
+isTrue :: Rule -> Bool
+isTrue (Rule (a,b)) = a == b
 
 isBinding :: Expr -> Rule -> Bool
 isBinding e (Rule (a,b)) = e == a || e == b
@@ -30,25 +31,29 @@ Group axioms main stage:
     Inverse element: a o a_inv = a_inv o a = 0
     Group! Enter Abelian bonus stage!
 -}
+type CheckableRule = ((Rule -> Bool), Rule)
 
-associativity :: Op -> Rule
-associativity op = (A `o` (B `o` C)) `eq` ((A `o` B) `o` C)
+checkCheckableRule :: CheckableRule -> Bool
+checkCheckableRule (p, rule) = p rule
+
+associativity :: Op -> CheckableRule
+associativity op = (isTrue, (A `o` (B `o` C)) `eq` ((A `o` B) `o` C))
                   where o = opf op
 
-rightNeutral :: Op -> Rule
-rightNeutral op = (A `o` Neutral op) `eq` A
+rightNeutral :: Op -> CheckableRule
+rightNeutral op = (isBinding (Neutral op), (A `o` Neutral op) `eq` A)
               where o = opf op
 
-leftNeutral :: Op -> Rule
-leftNeutral op = (Neutral op `o` A) `eq` A
+leftNeutral :: Op -> CheckableRule
+leftNeutral op = (isBinding (Neutral op), (Neutral op `o` A) `eq` A)
               where o = opf op
 
-rightInverse :: Op -> Rule
-rightInverse op = (A `o` Inv (op, A)) `eq` Neutral op
+rightInverse :: Op -> CheckableRule
+rightInverse op = (isBinding (Inv (op, A)), (A `o` Inv (op, A)) `eq` Neutral op)
               where o = opf op
 
-leftInverse :: Op -> Rule
-leftInverse op = (Inv (op, A) `o` A) `eq` Neutral op
+leftInverse :: Op -> CheckableRule
+leftInverse op = (isBinding (Inv (op, A)), (Inv (op, A) `o` A) `eq` Neutral op)
               where o = opf op
 
 {-
@@ -58,11 +63,11 @@ Abelian bonus stage:
     Abelian group! Enter ring bonus stage!
 -}
 
-commutativity :: Op -> Rule
-commutativity op = (A `o` B) `eq` (B `o` A)
+commutativity :: Op -> CheckableRule
+commutativity op = (isTrue, (A `o` B) `eq` (B `o` A))
                   where o = opf op
 
-magma op = [] -- FIXME: figure out some way to prove that op :: G -> G -> G
+magma op = [] -- FIXME?
 semiGroup op = magma op ++ [associativity op]
 monoid op = semiGroup op ++ [rightNeutral op, leftNeutral op]
 group op = monoid op ++ [rightInverse op, leftInverse op]
@@ -79,13 +84,13 @@ Ring bonus stage:
     Pseudo-ring!
 -}
 
-leftDistributivity :: Op -> Op -> Rule
-leftDistributivity opO opX = (A `x` (B `o` C)) `eq` ((A `x` B) `o` (B `x` C))
+leftDistributivity :: Op -> Op -> CheckableRule
+leftDistributivity opO opX = (isTrue, (A `x` (B `o` C)) `eq` ((A `x` B) `o` (B `x` C)))
                              where o = opf opO
                                    x = opf opX
 
-rightDistributivity :: Op -> Op -> Rule
-rightDistributivity opO opX = (A `x` (B `o` C)) `eq` ((A `x` B) `o` (B `x` C))
+rightDistributivity :: Op -> Op -> CheckableRule
+rightDistributivity opO opX = (isTrue, (A `x` (B `o` C)) `eq` ((A `x` B) `o` (B `x` C)))
                                where o = opf opO
                                      x = opf opX
 {-
@@ -116,7 +121,10 @@ type ProofInventory = [Rule]
 
 findMatchingEqualitiesAt :: Int -> Expr -> ProofInventory -> ProofInventory
 findMatchingEqualitiesAt idx expr inventory =
-    maybe [] (\e -> filter (matchEquality e) inventory) (subExprAt idx expr)
+    maybe [] (\e -> findMatchingEqualities e inventory) (subExprAt idx expr)
+
+findMatchingEqualities :: Expr -> ProofInventory -> ProofInventory
+findMatchingEqualities expr inventory = filter (matchEquality expr) inventory
 
 matchEquality :: Expr -> Rule -> Bool
 matchEquality e (Rule (a,b)) = matchPattern a e || matchPattern b e
@@ -136,7 +144,11 @@ would be represented as
 -}
 
 type Op = String
-data Expr = Expr (Op, Expr, Expr) | A | B | C | Inv (Op, Expr) | Neutral Op | Literal Int
+data Expr = Expr (Op, Expr, Expr)
+          | A | B | C
+          | Inv (Op, Expr)
+          | Neutral Op
+          | Literal Int
 
 instance Show Expr where
     show (Expr (o,l,r)) = "("++show l++" "++o++" "++show r++")"
@@ -191,6 +203,50 @@ toExpr (Rule (a,b)) = Expr ("=", a, b)
 toRule :: Expr -> Maybe Rule
 toRule (Expr ("=", a, b)) = Just (Rule (a, b))
 toRule _ = Nothing
+
+eqE :: Expr -> Expr -> Expr
+eqE a b = Expr ("=",a,b)
+
+eqTrans :: Op -> Expr -> Rule
+eqTrans op c = (A `eqE` B) `eq` ((A `o` c) `eqE` (B `o` c))
+               where o = opf op
+
+equalityTransforms :: Expr -> [Rule]
+equalityTransforms (Expr ("=", l, r)) =
+    concatMap (\t-> [t,reverseRule t]) $ nub (equalityTransforms l ++ equalityTransforms r)
+equalityTransforms e@(Expr (o, l, r)) = map (eqTrans o) $ expandVars e (getUniqueVariables e)
+equalityTransforms e = []
+
+expandVars :: Expr -> [Expr] -> [Expr]
+expandVars expr vars = concatMap (expandVar expr) vars
+
+expandVar :: Expr -> Expr -> [Expr]
+expandVar expr =
+    let ops = getUniqueOps expr in
+    (\v -> concatMap (\op -> [v, Inv (op, v)]) ops)
+
+getUniqueOps :: Expr -> [Op]
+getUniqueOps e = nub $ getOps e
+
+getOps :: Expr -> [Op]
+getOps (Expr (o, l, r)) = o : (getOps l ++ getOps r)
+getOps x = []
+
+getUniqueVariables :: Expr -> [Expr]
+getUniqueVariables e = nub $ getVariables e
+
+getVariables :: Expr -> [Expr]
+getVariables (Expr (o, l, r)) = getVariables l ++ getVariables r
+getVariables x = [x]
+
+inventoryFor :: Int -> CheckableRule -> [Rule] -> [Rule]
+inventoryFor idx (p, rule) inventory =
+    maybe [] (\e ->
+        case e of
+            Expr ("=", a, b) -> equalityTransforms e
+            _ -> findMatchingEqualities e inventory) subExpr
+    where subExpr = subExprAt idx (toExpr rule)
+
 {-
 
 The rewriting is done by attempting to bind the pattern to a given expression,
@@ -231,12 +287,10 @@ evalExpr binding e = Just (mapExpr (applyBinding binding) e)
 
 mapExpr :: (Expr -> Expr) -> Expr -> Expr
 mapExpr f (Expr (o, l, r)) = Expr (o, mapExpr f l, mapExpr f r)
-mapExpr f (Inv (o, e)) = Inv (o, mapExpr f e)
 mapExpr f x = f x
 
 exprLength :: Expr -> Int
 exprLength (Expr (o, l, r)) = 1 + exprLength l + exprLength r
-exprLength (Inv (o, e)) = 1 + exprLength e
 exprLength x = 1
 
 applyBinding :: Binding -> Expr -> Expr
@@ -267,7 +321,7 @@ updateBinding _ C _ = Invalid
 updateBinding b (Literal x) (Literal y) | x == y = b
 updateBinding _ (Literal _) _ = Invalid
 
-updateBinding b (Inv (op, p)) (Inv (ope, e)) | op == ope = updateBinding b p e
+updateBinding b (Inv (op,e)) (Inv (ope,ee)) | op == ope = updateBinding b e ee
 updateBinding _ (Inv _) _ = Invalid
 
 updateBinding b (Expr (op, pl, pr)) (Expr (ope, el, er)) | op == ope =
@@ -328,7 +382,6 @@ subExprAt' e@(Expr (o,l,r)) idx count =
                 then (Just e, c)
                 else subExprAt' r idx (c+1)
 subExprAt' e i c | i == c = (Just e, c)
-subExprAt' (Inv (o,e)) idx count = subExprAt' e idx (count+1)
 subExprAt' e i c = (Nothing, c+1)
 
 outerMapExprWithIndex :: (Expr -> Int -> Expr) -> Expr -> Expr
@@ -342,12 +395,5 @@ outerMapExprWithIndex' f (Expr (o,a,b)) c =
         Expr (o',left',b') -> let (c''', right) = outerMapExprWithIndex' f b' c'' in
                            (c''', Expr (o', left', right))
         x -> outerMapExprWithIndex' f x c''
-
-outerMapExprWithIndex' f (Inv (o,e)) c =
-    let (c', e') = (c+1, f e' c) in
-    case e' of
-        Inv (o',e'') -> let (c'', e''') = outerMapExprWithIndex' f e'' c' in
-                        (c'', Inv (o', e'''))
-        x -> outerMapExprWithIndex' f x c'
 
 outerMapExprWithIndex' f x c = (c+1, f x c)

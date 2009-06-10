@@ -11,11 +11,11 @@ drawLevel st =
         cloc = cursorLocation st
         inv = inventory st
         invIdx = inventoryIndex st in do
-    drawInventory (findMatchingEqualitiesAt cloc (toExpr equ) inv) invIdx
+    drawInventory (inventoryFor cloc equ inv) invIdx
     drawEquation equ cloc
 
-drawEquation :: Rule -> Int -> IO ()
-drawEquation rule idx = drawExpr (toExpr rule) idx
+drawEquation :: CheckableRule -> Int -> IO ()
+drawEquation (_,rule) idx = drawExpr (toExpr rule) idx
 
 drawExpr :: Expr -> Int -> IO ()
 drawExpr expr idx = do
