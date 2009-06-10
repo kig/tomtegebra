@@ -75,7 +75,7 @@ nextEquation sta =
     case equations sta of
         [x] -> nextLevel $ addToInventory x sta
         [] -> nextLevel sta
-        x:y:xs -> changeEquation y $ addToInventory x sta {equations = xs}
+        x:y:xs -> changeEquation y $ addToInventory x sta {equations = y:xs}
 
 moveCursorLeft :: AppState -> AppState
 moveCursorLeft = moveCursor (-1)
