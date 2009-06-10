@@ -2,6 +2,13 @@ module RenderGame where
 import Game
 import Algebra
 
+import Graphics.Rendering.OpenGL
+import Graphics.UI.GLUT
+
+import Matrix
+import VBO
+import Models
+
 drawVictory :: IO ()
 drawVictory = putStrLn "VICTORY!!! HUZZAH!!! BANZAI!!!"
 
@@ -18,7 +25,7 @@ drawEquation :: CheckableRule -> Int -> IO ()
 drawEquation (_,rule) idx = drawExpr (toExpr rule) idx
 
 drawExpr :: Expr -> Int -> IO ()
-drawExpr expr idx = do
+drawExpr expr@(Expr (o, l, r)) idx = do
     putStrLn "\nEquation:"
     putStrLn $ show expr
     putStrLn $ show (subExprAt idx expr)

@@ -62,3 +62,11 @@ quadTexCoords :: [(GLfloat, GLfloat)]
 quadTexCoords = [(0,0), (0,1), (1,1), (1,0)]
 
 createQuadModel = createModel TriangleFan quadVerts quadTexCoords
+
+triVerts :: [(GLfloat, GLfloat, GLfloat)]
+triVerts = [(-1,-1,0), (0,1,0), (1,-1,0)]
+triTexCoords :: [(GLfloat, GLfloat)]
+triTexCoords = [(0,0), (0.5,1), (1,0)]
+
+createTriModel = createModel Triangles triVerts triTexCoords
+

@@ -88,11 +88,17 @@ elapsedMs t0 t1 = (tdPicosec $ diffClockTimes t1 t0) `quotInteger` 1000000000
 display :: IORef AppState -> Model -> IO ()
 display state hex = do
     st <- get state
-    if gameOver st then exitLoop else return ()
+    if gameOver st then drawVictory >> exitLoop else return ()
+    clear [ColorBuffer]
+    drawBackground st hex
+    drawLevel st
+    swapBuffers
+
+drawBackground :: AppState -> Model -> IO ()
+drawBackground st hex =
     let t = angle st
         w = width st
         h = height st in do
-    clear [ColorBuffer]
     color $ (Color4 1 1 1 1 :: Color4 GLfloat)
     let m = axleMatrix w h t in do
         glLoadMatrix m
@@ -101,8 +107,6 @@ display state hex = do
                 glLoadMatrix $ matrixMul m (tm i)
                 drawInstance hex ) [1..6]
     bindBuffer ArrayBuffer $= Nothing
-    drawLevel st
-    swapBuffers
     where axleMatrix w h t = matrixMul (cameraMatrix w h) $ rotationMatrix (-t) [0.0, 0.3, 1.0]
           cameraMatrix w h = matrixMul (p w h) l
           tm i = translationMatrix [1.9*cos (2*pi*i/6), 1.9*sin (2*pi*i/6), 0]
