@@ -22,7 +22,7 @@ import System.Time
 import Matrix
 import VBO
 import Models
--- import Texture
+import Texture
 import Game
 import RenderGame
 import Algebra
@@ -52,8 +52,7 @@ main = do
     clear [ColorBuffer]
     multisample $= Enabled
 
-    [tex] <- genObjectNames 1
---     tex <- loadTextureFromPNG "tex.png"
+    tex <- loadTextureFromPNG "tex.png"
     he <- createHexModel
     let hex = he {textures = [tex]} in do
 
@@ -145,7 +144,7 @@ keyDown _ _ = return ()
 keyUp :: IORef AppState -> Key -> IO ()
 keyUp _ _ = return ()
 
--- mapRef :: IORef a -> (a -> a) -> IO ()
+mapRef :: (a -> a) -> IORef a -> IO ()
 mapRef f a = do
     v <- get a
     a $= f v

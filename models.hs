@@ -1,7 +1,7 @@
 module Models where
 import Graphics.Rendering.OpenGL
 import VBO
--- import Texture
+import Texture
 import Matrix
 
 type Vert3 = (GLfloat, GLfloat, GLfloat)
@@ -26,7 +26,7 @@ drawModel model = do
     arrayPointer VertexArray $= verts model
     clientState TextureCoordArray $= Enabled
     arrayPointer TextureCoordArray $= texCoords model
---     useTexture (textures model)
+    useTexture (textures model)
     drawInstance model
 
 drawInstance :: Model -> IO ()
