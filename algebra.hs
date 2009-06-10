@@ -11,7 +11,7 @@ isTrue :: Rule -> Bool
 isTrue (Rule (a,b)) = a == b
 
 isBinding :: Expr -> Rule -> Bool
-isBinding e (Rule (a,b)) = e == a || e == b
+isBinding e (Rule (a,b)) = a == b || e == a || e == b
 
 opf :: Op -> Expr -> Expr -> Expr
 opf op a b = Expr (op, a, b)
