@@ -26,9 +26,11 @@ import Texture
 import Game
 import RenderGame
 import Algebra
+import Graphics.UI.Gtk.General.General
 
 main :: IO ()
 main = do
+    initGUI
     initialWindowSize $= Size 720 480
     initialDisplayMode $= [
             RGBAMode,
@@ -45,16 +47,16 @@ main = do
     (progname, _) <- getArgsAndInitialize
     wnd <- createWindow "Tomtegebra"
 
-    state <- newIORef initState
-
-    clearColor $= Color4 0 0 0 0
+    clearColor $= Color4 1 1 1 1
 
     clear [ColorBuffer]
     multisample $= Enabled
 
-    tex <- loadTextureFromPNG "tex.png"
+    tex <- loadTextureFromFile "tex.png"
     he <- createHexModel
     let hex = he {textures = [tex]} in do
+
+    state <- newIORef (initGame hex)
 
     displayCallback $= display state hex
     reshapeCallback $= Just (reshape state)

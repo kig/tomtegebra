@@ -18,20 +18,31 @@ drawLevel st =
         cloc = cursorLocation st
         inv = inventory st
         invIdx = inventoryIndex st in do
-    drawInventory (inventoryFor cloc equ inv) invIdx
-    drawEquation equ cloc
+    drawInventory (inventoryFor cloc equ inv) (model st) invIdx
+    drawEquation equ (model st) cloc
 
-drawEquation :: CheckableRule -> Int -> IO ()
-drawEquation (_,rule) idx = drawExpr (toExpr rule) idx
+drawEquation :: CheckableRule -> Model -> Int -> IO ()
+drawEquation (_,rule) models idx = drawExpr (toExpr rule) models idx
 
-drawExpr :: Expr -> Int -> IO ()
-drawExpr expr@(Expr (o, l, r)) idx = do
-    putStrLn "\nEquation:"
-    putStrLn $ show expr
-    putStrLn $ show (subExprAt idx expr)
+drawExpr :: Expr -> Model -> Int -> IO ()
+drawExpr e models idx = drawScene $ buildScene models e idx
 
-drawInventory :: ProofInventory -> Int -> IO ()
-drawInventory inventory idx =
+drawScene = mapM_ drawTransformModel
+
+drawTransformModel (transform, model) = do
+    glLoadMatrix transform
+    drawModel model
+
+buildScene model expr@(Expr (o, l, r)) idx = [(identityMatrix, model)]
+buildScene model (Inv (o, e)) idx = [(identityMatrix, model)]
+buildScene model (Neutral o) idx = [(identityMatrix, model)]
+buildScene model A idx = [(identityMatrix, model)]
+buildScene model B idx = [(identityMatrix, model)]
+buildScene model C idx = [(identityMatrix, model)]
+buildScene model (Literal i) idx = [(identityMatrix, model)]
+
+drawInventory :: ProofInventory -> Model -> Int -> IO ()
+drawInventory inventory models idx =
     let idx' = idx `mod` length inventory in do
     putStrLn "\nInventory:"
     mapM_ (putStrLn.show) $ take idx' inventory

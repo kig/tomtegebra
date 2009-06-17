@@ -9,7 +9,9 @@ them for what they really are!
 -}
 
 module Game where
+import Graphics.Rendering.OpenGL (GLfloat)
 import Algebra
+import Models
 
 data AppState = State {
         equation :: CheckableRule,
@@ -22,10 +24,11 @@ data AppState = State {
 
         gameOver :: Bool,
 
-        angle :: Double,
-        width :: Double,
-        height :: Double,
-        dir :: Double
+        model :: Model,
+        angle :: GLfloat,
+        width :: GLfloat,
+        height :: GLfloat,
+        dir :: GLfloat
     }
 
 type Rules = [Rule]
@@ -34,8 +37,8 @@ data Level = Level (Op, Rules)
 
 levelO = Level ( "o", [(A `o` B) `eq` ((A `plus` B) `plus` Literal 1)] )
 
-initState :: AppState
-initState = nextLevel $ State {
+initGame :: Model -> AppState
+initGame model = nextLevel $ State {
                 equation = (isTrue, (A `o` B) `eq` (A `o` B)),
                 cursorLocation = 0,
                 inventory = map snd (field "+" "*"),
@@ -45,7 +48,7 @@ initState = nextLevel $ State {
                 levels = [levelO],
                 gameOver = False,
 
-                angle=0, width=600, height=600, dir=1.0}
+                model=model, angle=0, width=600, height=600, dir=1.0}
 
 resetCursor :: AppState -> AppState
 resetCursor sta = sta { cursorLocation = 0, inventoryIndex = -1 }

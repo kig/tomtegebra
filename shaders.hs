@@ -12,7 +12,7 @@ checkGLSLSupport = do
    version <- get (majorMinor glVersion)
    unless (version >= (2,0)) $ do
       extensions <- get glExtensions
-      unless ("GL_ARB_shading_language_120" `elem` extensions) $
+      unless ("GL_ARB_shading_language_100" `elem` extensions) $
          ioError (userError "No GLSL support found.")
 
 readAndCompileShader :: Shader s => FilePath -> IO s
@@ -58,12 +58,12 @@ setUniform program name = do
     location <- get (uniformLocation program name)
     reportErrors
     return (\val -> uniform location $= val)
-{-
+
 setAttribute :: Program -> String -> IO ((IntegerHandling, VertexArrayDescriptor a) -> IO ())
 setAttribute program name = do
     location <- get (attribLocation program name)
     reportErrors
-    return (\val -> vertexAttribPointer location $= val)-}
+    return (\val -> vertexAttribPointer location $= val)
 
 --    setUniform "BrickColor" (Color3 1.0 0.3 (0.2 :: GLfloat))
 --    setUniform "MortarColor" (Color3 0.85 0.86 (0.84 :: GLfloat))
