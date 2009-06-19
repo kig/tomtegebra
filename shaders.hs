@@ -2,7 +2,7 @@ module Shaders where
 
 import Control.Monad
 import Graphics.Rendering.OpenGL
-import Graphics.UI.GLUT
+import Graphics.UI.GLUT (reportErrors)
 
 
 -- Make sure that GLSL is supported by the driver, either directly by the core

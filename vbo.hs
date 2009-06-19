@@ -3,7 +3,7 @@ import Foreign.Storable
 import Data.Array.Storable
 import Foreign.Ptr
 import Graphics.Rendering.OpenGL
-import Graphics.UI.GLUT
+import Graphics.UI.GLUT (reportErrors)
 
 createVBO :: Storable a => [a] -> IO BufferObject
 createVBO elems = do

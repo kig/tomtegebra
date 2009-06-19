@@ -43,9 +43,9 @@ assertFile filepath = do
 
 createTexture :: TextureTarget -> Capability -> IO () -> IO TextureObject
 createTexture target mipmap m = do
+    texture target $= Enabled
     [tex] <- genObjectNames 1
     textureBinding target $= Just tex
-    texture target $= Enabled
     textureFilter target $= ((Linear', Nothing), Linear')
     textureWrapMode target S $= (Repeated, Clamp)
     textureWrapMode target T $= (Repeated, Clamp)
@@ -54,7 +54,6 @@ createTexture target mipmap m = do
     if mipmap == Enabled
         then textureFilter target $= ((Linear', Just Linear'), Linear')
         else return ()
-    textureBinding target $= Nothing
     return tex
 
 texImage2DSurface :: Maybe CubeMapTarget -> Level -> Surface -> IO ()
