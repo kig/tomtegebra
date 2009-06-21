@@ -67,6 +67,9 @@ buildScene' models (Neutral o) idx = neutral models $ opModel models o idx
 buildScene' models A idx = (idx-1, 1, getModel models "A" idx)
 buildScene' models B idx = (idx-1, 1, getModel models "B" idx)
 buildScene' models C idx = (idx-1, 1, getModel models "C" idx)
+buildScene' models X idx = (idx-1, 1, getModel models "X" idx)
+buildScene' models Y idx = (idx-1, 1, getModel models "Y" idx)
+buildScene' models Z idx = (idx-1, 1, getModel models "Z" idx)
 buildScene' models (Literal i) idx = (idx-1, 1, getModel models "L" idx)
 
 neutral :: Models -> (Int, GLfloat, Scene) -> (Int, GLfloat, Scene)
@@ -104,14 +107,13 @@ move x y = map (\(tr, model) -> (matrixMul m tr, model))
 
 drawInventory :: Matrix4x4 -> ProofInventory -> Models -> Int -> IO ()
 drawInventory camera inventory models idx = do
-    drawInventoryEntry cameran models leftLength (0, selected)
+    drawInventoryEntry cameran models lLength (0, selected)
     mapM_ (drawInventoryEntry cameran models (-1)) $ zip [1..] tlst
     mapM_ (drawInventoryEntry cameran models (-1)) $ zip [1+tlen..] rlst
     where idx' = idx `mod` len
           len = length inventory
           selected = inventory !! idx'
-          leftLength = exprLength left
-          Expr (_, left, _) = toExpr selected
+          lLength = leftLength selected
           tlen = fromIntegral $ length tlst :: GLfloat
           rlst = reverse $ drop (idx'+1) inventory
           tlst = reverse $ take idx' inventory
@@ -120,6 +122,15 @@ drawInventory camera inventory models idx = do
 
 drawInventoryEntry :: Matrix4x4 -> Models -> Int -> (GLfloat, Rule) -> IO ()
 drawInventoryEntry camera models cursorIdx (offset, rule) =
-    drawRule matrix rule models cursorIdx
+    drawInventoryRule matrix rule models cursorIdx
     where matrix = matrixMul camera tr
           tr = translationMatrix [0, 4*offset, 0]
+
+leftLength :: Rule -> Int
+leftLength (Rule (Expr ("=",_,_), Expr ("=",l,_))) = exprLength l
+leftLength (Rule (l, r)) = exprLength l
+
+drawInventoryRule :: Matrix4x4 -> Rule -> Models -> Int -> IO ()
+drawInventoryRule m (Rule (Expr("=",_,_), r)) models idx =
+    drawRule m (maybe (Rule (A,A)) id (toRule r)) models idx
+drawInventoryRule m rule models idx = drawRule m rule models idx

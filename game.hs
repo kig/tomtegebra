@@ -42,7 +42,7 @@ initGame models =
     nextLevel $ State {
         equation = (isTrue, (A `o` B) `eq` (A `o` B)),
         cursorLocation = 0,
-        inventory = map snd (field "+" "x"),
+        inventory = map (\(_,r) -> replaceABCwithXYZ r) (field "+" "x"),
         inventoryIndex = -1,
         equationCompleted = False,
         equations = [],
@@ -57,7 +57,7 @@ resetCursor sta = sta { cursorLocation = 0, inventoryIndex = -1 }
 changeLevel :: Level -> AppState -> AppState
 changeLevel (Level (op, rules)) sta =
     firstEquation (sta { equations = abelianGroup op,
-                         inventory = inventory sta ++ rules })
+                         inventory = inventory sta ++ map replaceABCwithXYZ rules })
 
 nextLevel :: AppState -> AppState
 nextLevel sta =
@@ -101,7 +101,7 @@ scrollInventory :: Int -> AppState -> AppState
 scrollInventory amount sta = sta { inventoryIndex = inventoryIndex sta + amount }
 
 addToInventory :: CheckableRule -> AppState -> AppState
-addToInventory r sta = sta { inventory = inventory sta ++ [snd r] }
+addToInventory r sta = sta { inventory = inventory sta ++ [replaceABCwithXYZ $ snd r] }
 
 applyCurrentRule :: AppState -> AppState
 applyCurrentRule sta =

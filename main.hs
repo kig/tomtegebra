@@ -59,6 +59,9 @@ main = do
     mushroom <- createImageModel "mushroom.png"
     cherry <- createImageModel "cherry.png"
     orange <- createImageModel "orange.png"
+    emptyGreen <- createImageModel "empty_green.png"
+    emptyRed <- createImageModel "empty_red.png"
+    emptyPurple <- createImageModel "empty_purple.png"
     literal <- createImageModel "literal.png"
     eq <- createImageModel "eq.png"
     plusbun <- createImageModel "plusbun.png"
@@ -71,6 +74,9 @@ main = do
                                  ("A", mushroom), 
                                  ("B", cherry), 
                                  ("C", orange), 
+                                 ("X", emptyGreen), 
+                                 ("Y", emptyRed), 
+                                 ("Z", emptyPurple), 
                                  ("L", literal), 
                                  ("E", neutral), 
                                  ("I", inverse), 

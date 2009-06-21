@@ -145,7 +145,7 @@ would be represented as
 
 type Op = String
 data Expr = Expr (Op, Expr, Expr)
-          | A | B | C
+          | A | B | C | X | Y | Z
           | Inv (Op, Expr)
           | Neutral Op
           | Literal Int
@@ -155,6 +155,9 @@ instance Show Expr where
     show A = "a"
     show B = "b"
     show C = "c"
+    show X = "x"
+    show Y = "y"
+    show Z = "z"
     show (Inv (o,e)) = "inv("++o++","++show e++")"
     show (Neutral o) = "e("++o++")"
     show (Literal i) = show i
@@ -164,6 +167,9 @@ instance Eq Expr where
     A == A = True
     B == B = True
     C == C = True
+    X == X = True
+    Y == Y = True
+    Z == Z = True
     Inv a == Inv b = a == b
     Neutral aop == Neutral bop = aop == bop
     Literal a == Literal b = a == b
@@ -208,12 +214,12 @@ eqE :: Expr -> Expr -> Expr
 eqE a b = Expr ("=",a,b)
 
 eqTrans :: Op -> Expr -> Rule
-eqTrans op c = (A `eqE` B) `eq` ((A `o` c) `eqE` (B `o` c))
+eqTrans op c = (X `eqE` Y) `eq` ((X `o` c) `eqE` (Y `o` c))
                where o = opf op
 
 equalityTransforms :: Expr -> [Rule]
 equalityTransforms (Expr ("=", l, r)) =
-    concatMap (\t-> [t,reverseRule t]) $ nub (equalityTransforms l ++ equalityTransforms r)
+    nub (equalityTransforms l ++ equalityTransforms r)
 equalityTransforms e@(Expr (o, l, r)) = map (eqTrans o) $ expandVars e (getUniqueVariables e)
 equalityTransforms e = []
 
@@ -247,6 +253,16 @@ inventoryFor idx (p, rule) inventory =
             _ -> findMatchingEqualities e inventory) subExpr
     where subExpr = subExprAt idx (toExpr rule)
 
+replaceABCwithXYZ :: Rule -> Rule
+replaceABCwithXYZ (Rule (l,r)) = Rule (mapExpr exprABCtoXYZ l, mapExpr exprABCtoXYZ r)
+
+exprABCtoXYZ :: Expr -> Expr
+exprABCtoXYZ A = X
+exprABCtoXYZ B = Y
+exprABCtoXYZ C = Z
+exprABCtoXYZ (Inv (o,e)) = Inv (o, exprABCtoXYZ e)
+exprABCtoXYZ e = e
+
 {-
 
 The rewriting is done by attempting to bind the pattern to a given expression,
@@ -272,10 +288,11 @@ applyEquality r@(Rule (pat, sub)) expr =
         then applyRule r expr
         else applyRule (reverseRule r) expr
 
-data Binding = Binding (Maybe Expr, Maybe Expr, Maybe Expr) | Invalid
+data Binding = Binding (Maybe Expr, Maybe Expr, Maybe Expr, Maybe Expr, Maybe Expr, Maybe Expr) 
+             | Invalid
 
 emptyBinding :: Binding
-emptyBinding = Binding (Nothing, Nothing, Nothing)
+emptyBinding = Binding (Nothing, Nothing, Nothing, Nothing, Nothing, Nothing)
 
 invalidBinding :: Binding -> Bool
 invalidBinding Invalid = True
@@ -294,9 +311,12 @@ exprLength (Expr (o, l, r)) = 1 + exprLength l + exprLength r
 exprLength x = 1
 
 applyBinding :: Binding -> Expr -> Expr
-applyBinding (Binding (Just a,_,_)) A = a
-applyBinding (Binding (_,Just b,_)) B = b
-applyBinding (Binding (_,_,Just c)) C = c
+applyBinding (Binding (Just a,_,_,_,_,_)) A = a
+applyBinding (Binding (_,Just b,_,_,_,_)) B = b
+applyBinding (Binding (_,_,Just c,_,_,_)) C = c
+applyBinding (Binding (_,_,_,Just x,_,_)) X = x
+applyBinding (Binding (_,_,_,_,Just y,_)) Y = y
+applyBinding (Binding (_,_,_,_,_,Just z)) Z = z
 applyBinding _ e = e
 
 bindPattern :: Pattern -> Expr -> Binding
@@ -306,17 +326,30 @@ bindPattern pat expr =
 updateBinding :: Binding -> Pattern -> Expr -> Binding
 updateBinding Invalid _ _ = Invalid
 
-updateBinding (Binding (Nothing, b, c)) A a = Binding (Just a, b, c)
-updateBinding (Binding (Just a, b, c)) A ae | a == ae = Binding (Just a, b, c)
+updateBinding (Binding (Nothing, b, c,x,y,z)) A a = Binding (Just a, b, c,x,y,z)
+updateBinding (Binding (Just a, b, c,x,y,z)) A ae | a == ae = Binding (Just a, b, c,x,y,z)
 updateBinding _ A _ = Invalid
 
-updateBinding (Binding (a, Nothing, c)) B b = Binding (a, Just b, c)
-updateBinding (Binding (a, Just b, c)) B be | b == be = Binding (a, Just b, c)
+updateBinding (Binding (a, Nothing, c,x,y,z)) B b = Binding (a, Just b, c,x,y,z)
+updateBinding (Binding (a, Just b, c,x,y,z)) B be | b == be = Binding (a, Just b, c,x,y,z)
 updateBinding _ B _ = Invalid
 
-updateBinding (Binding (a, b, Nothing)) C c = Binding (a, b, Just c)
-updateBinding (Binding (a, b, Just c)) C ce | c == ce = Binding (a, b, Just c)
+updateBinding (Binding (a, b, Nothing,x,y,z)) C c = Binding (a, b, Just c,x,y,z)
+updateBinding (Binding (a, b, Just c,x,y,z)) C ce | c == ce = Binding (a, b, Just c,x,y,z)
 updateBinding _ C _ = Invalid
+
+updateBinding (Binding (a, b, c,Nothing,y,z)) X x = Binding (a, b, c,Just x,y,z)
+updateBinding (Binding (a, b, c,Just x,y,z)) X xe | x == xe = Binding (a, b, c, Just x,y,z)
+updateBinding _ X _ = Invalid
+
+updateBinding (Binding (a, b, c,x,Nothing,z)) Y y = Binding (a, b, c,x,Just y,z)
+updateBinding (Binding (a, b, c,x,Just y,z)) Y ye | y == ye = Binding (a, b, c, x,Just y,z)
+updateBinding _ Y _ = Invalid
+
+updateBinding (Binding (a, b, c,x,y,Nothing)) Z z = Binding (a, b, c,x,y,Just z)
+updateBinding (Binding (a, b, c,x,y,Just z)) Z ze | z == ze = Binding (a, b, c, x,y,Just z)
+updateBinding _ Z _ = Invalid
+
 
 updateBinding b (Literal x) (Literal y) | x == y = b
 updateBinding _ (Literal _) _ = Invalid
