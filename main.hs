@@ -67,6 +67,7 @@ main = do
     plusbun <- createImageModel "plusbun.png"
     mulbun <- createImageModel "mulbun.png"
     cat <- createImageModel "cat.png"
+    frog <- createImageModel "frog.png"
     neutral <- createImageModel "neutral.png"
     inverse <- createImageModel "neutral.png"
 
@@ -83,6 +84,7 @@ main = do
                                  ("=", eq), 
                                  ("+", plusbun), 
                                  ("x", mulbun), 
+                                 ("f", frog), 
                                  ("o", cat)])
 
     displayCallback $= display state
@@ -121,8 +123,8 @@ display state = do
     let t = angle st
         w = width st
         h = height st
-        perspective = perspectiveMatrix 60 (w/h) 0.1 100 
-        lookat = lookAtMatrix [0.0, -5.0, 12.0] [0.0, 3.0, 0.0] [0, 1, 0] 
+        perspective = perspectiveMatrix 80 (w/h) 0.1 100 
+        lookat = lookAtMatrix [0.0, -2.0, 10.0] [0.0, 3.0, 0.0] [0, 1, 0] 
         camera = matrixMul perspective lookat
         in do
 --     drawBackground camera st hex

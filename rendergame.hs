@@ -117,7 +117,7 @@ drawInventory camera inventory models idx = do
           tlen = fromIntegral $ length tlst :: GLfloat
           rlst = reverse $ drop (idx'+1) inventory
           tlst = reverse $ take idx' inventory
-          cameran = matrixMul camerat (scalingMatrix [0.5, 0.5, 0.5])
+          cameran = matrixMul camerat (scalingMatrix [0.66, 0.66, 0.66])
           camerat = matrixMul camera (translationMatrix [0, 3, 0])
 
 drawInventoryEntry :: Matrix4x4 -> Models -> Int -> (GLfloat, Rule) -> IO ()

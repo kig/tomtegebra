@@ -35,7 +35,10 @@ type Rules = [Rule]
 
 data Level = Level (Op, Rules)
 
-levelO = Level ( "o", [(A `o` B) `eq` ((A `plus` B) `plus` Literal 1)] )
+levelCat = Level ( "o", [(A `o` B) `eq` ((A `plus` B) `plus` Literal 1)] )
+levelFrog = Level ( "f", [(A `f` B) `eq` ((A `o` B) `x` Literal 2)])
+            where f = opf "f"
+                  x = opf "x"
 
 initGame :: [(String,Model)] -> AppState
 initGame models = 
@@ -46,7 +49,7 @@ initGame models =
         inventoryIndex = -1,
         equationCompleted = False,
         equations = [],
-        levels = [levelO],
+        levels = [levelCat, levelFrog],
         gameOver = False,
 
         models=models, angle=0, width=600, height=600, dir=1.0}
