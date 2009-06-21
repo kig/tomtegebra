@@ -55,6 +55,7 @@ main = do
     blend $= Enabled
     blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
 
+    cursor <- createImageModel "cursor.png"
     mushroom <- createImageModel "mushroom.png"
     cherry <- createImageModel "cherry.png"
     orange <- createImageModel "orange.png"
@@ -63,11 +64,16 @@ main = do
     plusbun <- createImageModel "plusbun.png"
     mulbun <- createImageModel "mulbun.png"
     cat <- createImageModel "cat.png"
+    neutral <- createImageModel "neutral.png"
+    inverse <- createImageModel "neutral.png"
 
-    state <- newIORef (initGame [("A", mushroom), 
+    state <- newIORef (initGame [(">", cursor),
+                                 ("A", mushroom), 
                                  ("B", cherry), 
                                  ("C", orange), 
                                  ("L", literal), 
+                                 ("E", neutral), 
+                                 ("I", inverse), 
                                  ("=", eq), 
                                  ("+", plusbun), 
                                  ("x", mulbun), 
@@ -109,8 +115,8 @@ display state = do
     let t = angle st
         w = width st
         h = height st
-        perspective = perspectiveMatrix 30 (w/h) 0.1 100 
-        lookat = lookAtMatrix [1.0, 2.0, 23.0] [-1.0, 0.0, 0.0] [0, 1, 0] 
+        perspective = perspectiveMatrix 60 (w/h) 0.1 100 
+        lookat = lookAtMatrix [0.0, -5.0, 12.0] [0.0, 3.0, 0.0] [0, 1, 0] 
         camera = matrixMul perspective lookat
         in do
 --     drawBackground camera st hex

@@ -42,7 +42,7 @@ initGame models =
     nextLevel $ State {
         equation = (isTrue, (A `o` B) `eq` (A `o` B)),
         cursorLocation = 0,
-        inventory = map snd (field "+" "*"),
+        inventory = map snd (field "+" "x"),
         inventoryIndex = -1,
         equationCompleted = False,
         equations = [],
