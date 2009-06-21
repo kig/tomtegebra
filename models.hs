@@ -146,3 +146,15 @@ triTexCoords = [(0,0), (0.5,1), (1,0)]
 
 createTriModel = createModel Triangles triVerts triTexCoords
 
+quadImageVerts :: [(GLfloat, GLfloat, GLfloat)]
+quadImageVerts = [(0,0,0), (0,1,0), (1,1,0), (1,0,0)]
+
+quadImageTexCoords :: [(GLfloat, GLfloat)]
+quadImageTexCoords = [(0,1), (0,0), (1,0), (1,1)]
+
+createQuadImageModel = createModel TriangleFan quadImageVerts quadImageTexCoords
+
+createImageModel fn = do
+    tex <- loadTexture fn
+    q <- createQuadImageModel
+    return (q {textures = [tex]})

@@ -24,7 +24,7 @@ data AppState = State {
 
         gameOver :: Bool,
 
-        model :: Model,
+        models :: [(String, Model)],
         angle :: GLfloat,
         width :: GLfloat,
         height :: GLfloat,
@@ -37,18 +37,19 @@ data Level = Level (Op, Rules)
 
 levelO = Level ( "o", [(A `o` B) `eq` ((A `plus` B) `plus` Literal 1)] )
 
-initGame :: Model -> AppState
-initGame model = nextLevel $ State {
-                equation = (isTrue, (A `o` B) `eq` (A `o` B)),
-                cursorLocation = 0,
-                inventory = map snd (field "+" "*"),
-                inventoryIndex = -1,
-                equationCompleted = False,
-                equations = [],
-                levels = [levelO],
-                gameOver = False,
+initGame :: [(String,Model)] -> AppState
+initGame models = 
+    nextLevel $ State {
+        equation = (isTrue, (A `o` B) `eq` (A `o` B)),
+        cursorLocation = 0,
+        inventory = map snd (field "+" "*"),
+        inventoryIndex = -1,
+        equationCompleted = False,
+        equations = [],
+        levels = [levelO],
+        gameOver = False,
 
-                model=model, angle=0, width=600, height=600, dir=1.0}
+        models=models, angle=0, width=600, height=600, dir=1.0}
 
 resetCursor :: AppState -> AppState
 resetCursor sta = sta { cursorLocation = 0, inventoryIndex = -1 }

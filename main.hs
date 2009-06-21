@@ -51,18 +51,33 @@ main = do
 
     clear [ColorBuffer]
     multisample $= Enabled
+    
+    blend $= Enabled
+    blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
 
-    tex <- loadTextureFromFile "tex.png"
-    he <- createHexModel
-    let hex = he {textures = [tex]} in do
+    mushroom <- createImageModel "mushroom.png"
+    cherry <- createImageModel "cherry.png"
+    orange <- createImageModel "orange.png"
+    literal <- createImageModel "literal.png"
+    eq <- createImageModel "eq.png"
+    plusbun <- createImageModel "plusbun.png"
+    mulbun <- createImageModel "mulbun.png"
+    cat <- createImageModel "cat.png"
 
-    state <- newIORef (initGame hex)
+    state <- newIORef (initGame [("A", mushroom), 
+                                 ("B", cherry), 
+                                 ("C", orange), 
+                                 ("L", literal), 
+                                 ("=", eq), 
+                                 ("+", plusbun), 
+                                 ("x", mulbun), 
+                                 ("o", cat)])
 
-    displayCallback $= display state hex
+    displayCallback $= display state
     reshapeCallback $= Just (reshape state)
     keyboardMouseCallback $= Just (keyboardMouse state)
 
-    addTimerCallback 24 $ timerProc state (display state hex)
+    addTimerCallback 24 $ timerProc state (display state)
 
     mainLoop
     destroyWindow wnd
@@ -86,33 +101,34 @@ timerProc state m = do
 elapsedMs :: ClockTime -> ClockTime -> Integer
 elapsedMs t0 t1 = (tdPicosec $ diffClockTimes t1 t0) `quotInteger` 1000000000
 
-display :: IORef AppState -> Model -> IO ()
-display state hex = do
+display :: IORef AppState -> IO ()
+display state = do
     st <- get state
     if gameOver st then drawVictory >> exitLoop else return ()
     clear [ColorBuffer]
-    drawBackground st hex
-    drawLevel st
-    swapBuffers
-
-drawBackground :: AppState -> Model -> IO ()
-drawBackground st hex =
     let t = angle st
         w = width st
-        h = height st in do
-    color $ (Color4 1 1 1 1 :: Color4 GLfloat)
-    let m = axleMatrix w h t in do
-        glLoadMatrix m
-        drawModel hex
-        mapM_ (\i -> do
-                glLoadMatrix $ matrixMul m (tm i)
-                drawInstance hex ) [1..6]
+        h = height st
+        perspective = perspectiveMatrix 30 (w/h) 0.1 100 
+        lookat = lookAtMatrix [1.0, 2.0, 23.0] [-1.0, 0.0, 0.0] [0, 1, 0] 
+        camera = matrixMul perspective lookat
+        in do
+--     drawBackground camera st hex
+    drawLevel camera st
+    swapBuffers
+
+drawBackground :: Matrix4x4 -> AppState -> Model -> IO ()
+drawBackground cam st hex = do
+    color (Color4 1 1 1 1 :: Color4 GLfloat)
+    glLoadMatrix m
+    drawModel hex
+    mapM_ (\i -> do
+            glLoadMatrix $ matrixMul m (tm i)
+            drawInstance hex ) [1..6]
     bindBuffer ArrayBuffer $= Nothing
-    where axleMatrix w h t = matrixMul (cameraMatrix w h) $ rotationMatrix (-t) [0.0, 0.3, 1.0]
-          cameraMatrix w h = matrixMul (p w h) l
+    where t = angle st
+          m = matrixMul cam $ rotationMatrix (-t) [0.0, 0.3, 1.0]
           tm i = translationMatrix [1.9*cos (2*pi*i/6), 1.9*sin (2*pi*i/6), 0]
-          p w h = perspectiveMatrix 30 (w/h) 0.1 100
-          l = lookAtMatrix [4.0, 1.0, 3.0] [-1.0, 0.0, 0.0] [0, 1, 0]
 
 reshape :: IORef AppState -> Size -> IO ()
 reshape state s@(Size w h) = do

@@ -17,8 +17,8 @@ useTexture textures = do
         textureBinding Texture2D $= Just tex) $ zip textures [0..]
     activeTexture $= TextureUnit 0
 
-loadTextureFromFile :: FilePath -> IO TextureObject
-loadTextureFromFile filepath = do
+loadTexture :: FilePath -> IO TextureObject
+loadTexture filepath = do
     assertFile filepath
     createTexture Texture2D Enabled
         (withImageSurfaceFromPixbuf filepath $ texImage2DSurface Nothing 0)
