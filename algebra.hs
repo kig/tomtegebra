@@ -1,18 +1,26 @@
-{-
+{- |
 {Algebra gameplay}
 
 The proof gameplay consists of subsequent stages of proving group axioms
-for the function by fiddling the axiom equation to show equality.
+for the function by fiddling the axiom equation to show equality or to
+bind the wanted variable.
+
 -}
 module Algebra where
 import Data.List hiding (group)
 
+-- | 'isTrue' checks whether both sides of a 'Rule' are equal.
 isTrue :: Rule -> Bool
 isTrue (Rule (a,b)) = a == b
 
+-- | 'isBinding' checks if a 'Rule' is a binding for 'Expr' (i.e. if one side of the 'Rule' has only 'Expr' on it.)
+--   'isBinding' also returns true if both sides of the 'Rule' are equal.
 isBinding :: Expr -> Rule -> Bool
 isBinding e (Rule (a,b)) = a == b || e == a || e == b
 
+-- | 'opf' is a shortcut for creating 'Expr'-creating functions.
+--   E.g. let o = opf "o" in A `o` B
+--   instead of let o a b = Expr ("o", a, b) in A `o` B
 opf :: Op -> Expr -> Expr -> Expr
 opf op a b = Expr (op, a, b)
 
@@ -31,27 +39,40 @@ Group axioms main stage:
     Inverse element: a o a_inv = a_inv o a = 0
     Group! Enter Abelian bonus stage!
 -}
+-- | 'CheckableRule' is a 'Rule' with a predicate function to check it.
+--   E.g. (isTrue, Rule (foo, bar))
 type CheckableRule = ((Rule -> Bool), Rule)
 
+-- | 'checkCheckableRule' applies the predicate of a 'CheckableRule' to its 'Rule' and returns the result.
 checkCheckableRule :: CheckableRule -> Bool
 checkCheckableRule (p, rule) = p rule
 
+-- | 'associativity' returns the associativity 'CheckableRule' for the given 'Op'.
+--   (a o (b o c)) = ((a o b) o c)
 associativity :: Op -> CheckableRule
 associativity op = (isTrue, (A `o` (B `o` C)) `eq` ((A `o` B) `o` C))
                   where o = opf op
 
+-- | 'rightNeutral' returns the 'CheckableRule' for the right neutral element of the given 'Op'.
+--   (a o e) = a
 rightNeutral :: Op -> CheckableRule
 rightNeutral op = (isBinding (Neutral op), (A `o` Neutral op) `eq` A)
               where o = opf op
 
+-- | 'leftNeutral' returns the 'CheckableRule' for the left neutral element of the given 'Op'.
+--   (e o a) = a
 leftNeutral :: Op -> CheckableRule
 leftNeutral op = (isBinding (Neutral op), (Neutral op `o` A) `eq` A)
               where o = opf op
 
+-- | 'rightInverse' returns the 'CheckableRule' for the right inverse function of the given 'Op'.
+--   (a o inv(a)) = e
 rightInverse :: Op -> CheckableRule
 rightInverse op = (isBinding (Inv (op, A)), (A `o` Inv (op, A)) `eq` Neutral op)
               where o = opf op
 
+-- | 'leftInverse' returns the 'CheckableRule' for the left inverse function of the given 'Op'.
+--   (inv(a) o a) = e
 leftInverse :: Op -> CheckableRule
 leftInverse op = (isBinding (Inv (op, A)), (Inv (op, A) `o` A) `eq` Neutral op)
               where o = opf op
@@ -63,15 +84,27 @@ Abelian bonus stage:
     Abelian group! Enter ring bonus stage!
 -}
 
+-- | 'commutativity' returns the 'CheckableRule' for the commutativity of the given 'Op'.
+--   (a o b) = (b o a)
 commutativity :: Op -> CheckableRule
 commutativity op = (isTrue, (A `o` B) `eq` (B `o` A))
                   where o = opf op
 
+-- | 'magma' states that a function is 'G -> G -> G'. It does nothing here, how does one prove it?
 magma op = [] -- FIXME?
+
+-- | 'semiGroup' is a 'magma' with 'associativity'.
 semiGroup op = magma op ++ [associativity op]
+
+-- | 'monoid' is a 'semiGroup' with 'rightNeutral' and 'leftNeutral' (that are equal.)
 monoid op = semiGroup op ++ [rightNeutral op, leftNeutral op]
+
+-- | 'group' is a 'monoid' with 'rightInverse' and 'leftInverse' (that are equal.)
 group op = monoid op ++ [rightInverse op, leftInverse op]
+
+-- | 'abelianGroup' is a 'group' with 'commutativity'.
 abelianGroup op = group op ++ [commutativity op]
+
 
 {-
 Ring bonus stage:
@@ -84,15 +117,21 @@ Ring bonus stage:
     Pseudo-ring!
 -}
 
+-- | 'leftDistributivity' returns the 'CheckableRule' for the left distributivity of
+--   'opX' over 'opO', i.e. a x (b o c) = (a x b) o (b x c).
 leftDistributivity :: Op -> Op -> CheckableRule
 leftDistributivity opO opX = (isTrue, (A `x` (B `o` C)) `eq` ((A `x` B) `o` (B `x` C)))
                              where o = opf opO
                                    x = opf opX
 
+-- | 'rightDistributivity' returns the 'CheckableRule' for the right distributivity of 
+--   'opX' over 'opO', i.e. (a o b) x c = (a x c) o (b x c).
 rightDistributivity :: Op -> Op -> CheckableRule
-rightDistributivity opO opX = (isTrue, (A `x` (B `o` C)) `eq` ((A `x` B) `o` (B `x` C)))
+rightDistributivity opO opX = (isTrue, ((A `o` B) `x` C) `eq` ((A `x` C) `o` (B `x` C)))
                                where o = opf opO
                                      x = opf opX
+
+
 {-
     Neutral element for x: a x 1 = 1 x a = a
     Ring!
@@ -106,15 +145,26 @@ Field bonus stage:
     Field! Superior! Shower of jewels!
 -}
 
+
+-- | A 'pseudoRing' is an 'abelianGroup' o with a 'semiGroup' x where x is distributive over o.
 pseudoRing o x = abelianGroup o ++ semiGroup x ++
                  [leftDistributivity o x, rightDistributivity o x]
+
+-- | A 'ring' is a 'pseudoRing' o x with the neutral element for x.
 ring o x = pseudoRing o x ++ [rightNeutral x, leftNeutral x]
+
+-- | A 'commutativeRing' is a 'ring' o x with commutativity for x.
 commutativeRing o x = ring o x ++ [commutativity x]
+
+-- | A 'field' is a 'commutativeRing' o x with the inverse function for x 
+--   (in G \ {neutral(o)}).
 field o x = commutativeRing o x ++ [rightInverse x, leftInverse x]
+
+
 {-
 Whenever you show something, the equality is added to your proof inventory.
 You can use items in your proof inventory to do substitutions and other manipulations.
-You begin the game armed (in the tutorial) with +. Build it up from there.
+You begin the game armed with +. Build it up from there.
 -}
 
 type ProofInventory = [Rule]
