@@ -118,9 +118,9 @@ Ring bonus stage:
 -}
 
 -- | 'leftDistributivity' returns the 'CheckableRule' for the left distributivity of
---   'opX' over 'opO', i.e. a x (b o c) = (a x b) o (b x c).
+--   'opX' over 'opO', i.e. a x (b o c) = (a x b) o (a x c).
 leftDistributivity :: Op -> Op -> CheckableRule
-leftDistributivity opO opX = (isTrue, (A `x` (B `o` C)) `eq` ((A `x` B) `o` (B `x` C)))
+leftDistributivity opO opX = (isTrue, (A `x` (B `o` C)) `eq` ((A `x` B) `o` (A `x` C)))
                              where o = opf opO
                                    x = opf opX
 
