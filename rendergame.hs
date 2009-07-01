@@ -106,6 +106,7 @@ move x y = map (\(tr, model) -> (matrixMul m tr, model))
            where m = translationMatrix [x, y, 0]
 
 drawInventory :: Matrix4x4 -> ProofInventory -> Models -> Int -> IO ()
+drawInventory camera [] models idx = return ()
 drawInventory camera inventory models idx = do
     drawInventoryEntry cameran models lLength (0, selected)
     mapM_ (drawInventoryEntry cameran models (-1)) $ zip [1..] tlst
@@ -127,10 +128,10 @@ drawInventoryEntry camera models cursorIdx (offset, rule) =
           tr = translationMatrix [0, 4*offset, 0]
 
 leftLength :: Rule -> Int
-leftLength (Rule (Expr ("=",_,_), Expr ("=",l,_))) = exprLength l
+leftLength (Rule (Expr ("=",l,_), Expr ("=",_,_))) = exprLength l
 leftLength (Rule (l, r)) = exprLength l
 
 drawInventoryRule :: Matrix4x4 -> Rule -> Models -> Int -> IO ()
-drawInventoryRule m (Rule (Expr("=",_,_), r)) models idx =
+drawInventoryRule m (Rule (r, Expr("=",_,_))) models idx =
     drawRule m (maybe (Rule (A,A)) id (toRule r)) models idx
 drawInventoryRule m rule models idx = drawRule m rule models idx

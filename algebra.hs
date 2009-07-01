@@ -264,7 +264,7 @@ eqE :: Expr -> Expr -> Expr
 eqE a b = Expr ("=",a,b)
 
 eqTrans :: Op -> Expr -> Rule
-eqTrans op c = (X `eqE` Y) `eq` ((X `o` c) `eqE` (Y `o` c))
+eqTrans op c = ((X `o` c) `eqE` (Y `o` c)) `eq` (X `eqE` Y)
                where o = opf op
 
 equalityTransforms :: Expr -> [Rule]
@@ -279,7 +279,9 @@ expandVars expr vars = concatMap (expandVar expr) vars
 expandVar :: Expr -> Expr -> [Expr]
 expandVar expr =
     let ops = getUniqueOps expr in
-    (\v -> concatMap (\op -> [v, Inv (op, v)]) ops)
+    (\v -> concatMap (\op -> case v of
+                                Inv (_,v') -> [v']
+                                v -> [v, Inv (op, v)]) ops)
 
 getUniqueOps :: Expr -> [Op]
 getUniqueOps e = nub $ getOps e
@@ -297,11 +299,21 @@ getVariables x = [x]
 
 inventoryFor :: Int -> CheckableRule -> [Rule] -> [Rule]
 inventoryFor idx (p, rule) inventory =
-    maybe [] (\e ->
-        case e of
-            Expr ("=", a, b) -> equalityTransforms e
-            _ -> findMatchingEqualities e inventory) subExpr
+    filter (includeSameOp rule) unfiltered
     where subExpr = subExprAt idx (toExpr rule)
+          unfiltered = maybe [] subExprInventory subExpr
+          subExprInventory e@(Expr ("=", a, b)) = equalityTransforms e
+          subExprInventory e = findMatchingEqualities e inventory
+          includeSameOp r1 r2 = findMatchFromSorted (uniqOps r1) (uniqOps r2)
+          uniqOps = sort . without "=" . getUniqueOps . toExpr
+          without e = filter (/= e)
+
+findMatchFromSorted :: Ord a => [a] -> [a] -> Bool
+findMatchFromSorted _ [] = False
+findMatchFromSorted [] _ = False
+findMatchFromSorted (x:xs) (y:ys) | x == y = True
+findMatchFromSorted (x:xs) (y:ys) | x < y = findMatchFromSorted xs (y:ys)
+findMatchFromSorted (x:xs) (y:ys) | x > y = findMatchFromSorted (x:xs) ys
 
 replaceABCwithXYZ :: Rule -> Rule
 replaceABCwithXYZ (Rule (l,r)) = Rule (mapExpr exprABCtoXYZ l, mapExpr exprABCtoXYZ r)

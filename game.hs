@@ -35,21 +35,27 @@ type Rules = [Rule]
 
 data Level = Level (Op, Rules)
 
+
 levelCat = Level ( "o", [(A `o` B) `eq` ((A `plus` B) `plus` Literal 1)] )
-levelFrog = Level ( "f", [(A `f` B) `eq` ((A `o` B) `x` Literal 2)])
+
+levelFrog = Level ( "f", [(A `f` B) `eq` ((A `o` Literal 1) `o` B)])
             where f = opf "f"
-                  x = opf "x"
+
+levelBunny = Level ( "x", [(A `x` B) `eq` ((Literal 1 `f` B) `f` A)])
+            where x = opf "x"
+                  f = opf "f"
+
 
 initGame :: [(String,Model)] -> AppState
 initGame models = 
     nextLevel $ State {
         equation = (isTrue, (A `o` B) `eq` (A `o` B)),
         cursorLocation = 0,
-        inventory = map (\(_,r) -> replaceABCwithXYZ r) (field "+" "x"),
+        inventory = map (\(_,r) -> replaceABCwithXYZ r) (abelianGroup "+"),
         inventoryIndex = -1,
         equationCompleted = False,
         equations = [],
-        levels = [levelCat, levelFrog],
+        levels = [levelCat, levelFrog, levelBunny],
         gameOver = False,
 
         models=models, angle=0, width=600, height=600, dir=1.0}
@@ -108,14 +114,17 @@ addToInventory r sta = sta { inventory = inventory sta ++ [replaceABCwithXYZ $ s
 
 applyCurrentRule :: AppState -> AppState
 applyCurrentRule sta =
+    applyCurrentRule' sta inv cloc origEq
+    where inv = inventoryFor cloc origEq $ inventory sta
+          cloc = cursorLocation sta
+          origEq = equation sta
+
+applyCurrentRule' sta [] cloc origEq = sta
+applyCurrentRule' sta inv cloc origEq =
     sta { equation = equ,
           cursorLocation = cursorLocation sta `mod` ruleLength (snd equ),
-          equationCompleted = checkCheckableRule equ
-        }
-    where cloc = cursorLocation sta
-          origEq = equation sta
-          equE = toExpr (snd origEq)
-          inv = inventoryFor cloc origEq $ inventory sta
+          equationCompleted = checkCheckableRule equ }
+    where equE = toExpr (snd origEq)
           invIdx = inventoryIndex sta `mod` length inv
           rule = inv !! invIdx
           equ = maybe origEq (\s-> (fst origEq,s)) (toRule $ applyEqualityAt cloc rule equE)
