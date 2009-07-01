@@ -1,0 +1,27 @@
+Further ideas
+-------------
+
+- story mode to tie up the action, run around the game world on a top-down map
+    - dependencies determine where you can go
+      e.g. if frog uses cat, you need to get cat before you can take frog on
+    - find lemmas, extra moves and time stoppers to make hard levels easier
+
+- time attack / limited move count
+    - levels with time limit (e.g. normal cat 1 min / equation, black cat 30 s / eq)
+    - or move limit (e.g. hard cat 5 substitutions / eq)
+
+- polymorphic lemmas, bound to some property of op (assoc, neutral, inverse, commutative)
+  e.g. if o is assoc, neutral and inverse then: (A o B) o inv(op, B) = A, because
+                                                A o (B o inv(op, B)) = A o neutral(o) = A
+       if o is also commutative then: (B o A) o inv(op, B) = A
+
+- show Assoc Neutral Inverse Commutative with four jewels around op
+     A
+   N o I
+     C
+
+- treasure chests with helpful lemmas / helper items / money
+    = bonus level where you try to prove an equation to get it in your inventory
+- shop
+- lemma builder
+
