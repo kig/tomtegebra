@@ -39,8 +39,8 @@ drawPressSpaceToContinue camera texts = do
     drawModel m
     where (w,h,m) = lookupOrFirst "nextLevel" texts
           ratio = fromIntegral w / fromIntegral h
-          mat' = matrixMul camera (scalingMatrix [10.0, 10.0 / ratio, 10.0])
-          mat = matrixMul mat' (translationMatrix [-0.5, 1.0, 0.0])
+          mat' = matrixMul camera (scalingMatrix [15.0, 15.0 / ratio, 15.0])
+          mat = matrixMul mat' (translationMatrix [-0.5, 0.5, 0.0])
           
 
 -- | Draws a CheckableRule transformed by m, with the given models, equation

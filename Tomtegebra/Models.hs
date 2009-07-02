@@ -5,6 +5,8 @@ import Texture
 import Foreign.Ptr (Ptr, castPtr)
 import Matrix
 import Data.Int
+import Data.IORef
+import System.IO.Unsafe
 
 type Vert3 = (GLfloat, GLfloat, GLfloat)
 type Tex2 = (GLfloat, GLfloat)
@@ -155,13 +157,25 @@ quadImageTexCoords = [(0,1), (0,0), (1,0), (1,1)]
 
 createQuadImageModel = createModel TriangleFan quadImageVerts quadImageTexCoords
 
+imageModel = unsafePerformIO (newIORef Nothing)
+{-# NOINLINE imageModel #-}
+
+getCachedImageModel = do
+    im <- get imageModel
+    case im of
+        Just q -> return q
+        Nothing -> do
+            iq <- createQuadImageModel
+            imageModel $= Just iq
+            return iq
+
 createImageModel fn = do
     (w,h,tex) <- loadTexture fn
-    q <- createQuadImageModel
+    q <- getCachedImageModel
     return (w,h,q {textures = [tex]})
 
-createTextModel markup = do
-    (w,h,tex) <- createTextTexture markup
-    q <- createQuadImageModel
+createTextModel alignment markup = do
+    (w,h,tex) <- createTextTexture alignment markup
+    q <- getCachedImageModel
     return (w,h,q {textures = [tex]})
     

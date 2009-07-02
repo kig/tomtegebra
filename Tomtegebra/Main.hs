@@ -27,13 +27,14 @@ import Game
 import RenderGame
 import Algebra
 import Graphics.UI.Gtk.General.General
+import Graphics.UI.Gtk.Pango.Layout
 
 import Paths_tomtegebra
 
 main :: IO ()
 main = do
     initGUI
-    initialWindowSize $= Size 720 480
+    initialWindowSize $= Size 900 570
     initialDisplayMode $= [
             RGBAMode,
             DoubleBuffered,
@@ -73,12 +74,12 @@ main = do
     (_,_,neutral) <- loadImage "neutral.png"
     (_,_,inverse) <- loadImage "neutral.png"
 
-    tomtegebra <- createTextModel "<span font=\"Trebuchet MS 72\">Tomtegebra</span>"
-    pressSpace <- createTextModel "<span font=\"Trebuchet MS 48\">Press space to play</span>"
-    nextLevel <- createTextModel "<span font=\"Trebuchet MS 72\">Level complete!\n</span><span font=\"Trebuchet MS 48\">Press space to continue</span>"
-    bothEqual <- createTextModel "<span font=\"Sans 24\">Make both sides equal</span>"
-    bindNeutral <- createTextModel "<span font=\"Sans 24\">Reduce one side to circled element</span>"
-    bindInverse <- createTextModel "<span font=\"Sans 24\">Reduce one side to mushroom's inverse</span>"
+    tomtegebra <- createTextModel AlignCenter "<span font=\"Trebuchet MS 144\">Tomtegebra</span>"
+    pressSpace <- createTextModel AlignCenter "<span font=\"Trebuchet MS 48\">Press space to play</span>"
+    nextLevel <- createTextModel AlignCenter "<span font=\"Trebuchet MS 72\">Level complete!\n</span><span font=\"Trebuchet MS 48\">Press space to continue</span>"
+    bothEqual <- createTextModel AlignCenter "<span font=\"Sans 18\">Make both sides equal</span>"
+    bindNeutral <- createTextModel AlignCenter "<span font=\"Sans 18\">Reduce one side to circled element</span>"
+    bindInverse <- createTextModel AlignCenter "<span font=\"Sans 18\">Reduce one side to mushroom's inverse</span>"
 
     state <- newIORef (initGame [("bothEqual", bothEqual)
                                 ,("bindNeutral", bindNeutral)
@@ -160,8 +161,8 @@ drawTitleScreen camera st = do
         (sw,sh,sm) = lookupOrFirst "pressSpace" (texts st)
         tratio = (fromIntegral tw / fromIntegral th)
         sratio = (fromIntegral sw / fromIntegral sh)
-        tmat' = matrixMul camera (scalingMatrix [10.0, 10.0 / tratio, 10.0])
-        tmat = matrixMul tmat' (translationMatrix [-0.5, 2.0, 0.0])
+        tmat' = matrixMul camera (scalingMatrix [20.0, 20.0 / tratio, 20.0])
+        tmat = matrixMul tmat' (translationMatrix [-0.5, 1.0, 0.0])
         smat' = matrixMul camera (scalingMatrix [10.0, 10.0 / sratio, 10.0])
         smat = matrixMul smat' (translationMatrix [-0.5, 0.0, 0.0])
 
@@ -205,6 +206,8 @@ keyDown st (Char ' ') = do
         sta'' = if equationCompleted sta' then nextEquation sta' else applyCurrentRule sta'
         in do
     st $= sta''
+
+keyDown st (Char 'f') = fullScreen
 keyDown st (Char 'q') = exitLoop
 keyDown _ _ = return ()
 
