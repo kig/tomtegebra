@@ -1,3 +1,7 @@
+{- |
+    Shader loading helpers, adapted from the OrangeBook ogl2brick example in the
+    Haskell GLUT binding.
+-}
 module Shaders where
 
 import Control.Monad
@@ -5,8 +9,8 @@ import Graphics.Rendering.OpenGL
 import Graphics.UI.GLUT (reportErrors)
 
 
--- Make sure that GLSL is supported by the driver, either directly by the core
--- or via an extension.
+-- | Make sure that GLSL is supported by the driver, either directly by the core
+--   or via an extension.
 checkGLSLSupport :: IO ()
 checkGLSLSupport = do
    version <- get (majorMinor glVersion)
@@ -15,6 +19,9 @@ checkGLSLSupport = do
       unless ("GL_ARB_shading_language_100" `elem` extensions) $
          ioError (userError "No GLSL support found.")
 
+-- | Loads and compiles a GLSL shader from a 'FilePath'.
+--
+--   Raises an ioError if shader compilation fails.
 readAndCompileShader :: Shader s => FilePath -> IO s
 readAndCompileShader filePath = do
    src <- readFile filePath
@@ -30,6 +37,10 @@ readAndCompileShader filePath = do
       ioError (userError "shader compilation failed")
    return shader
 
+-- | Creates a GLSL program from the given lists of vertex shaders and fragment shaders.
+--   Attaches the shaders to the program and links the program.
+--   
+--   Raises an ioError if the linking fails.
 createProgram :: [VertexShader] -> [FragmentShader] -> IO Program
 createProgram vs fs = do
    [program] <- genObjectNames 1
@@ -44,30 +55,34 @@ createProgram vs fs = do
       ioError (userError "linking failed")
    return program
 
+-- | Loads and links a program from a vertex shader file and fragment shader file.
 loadProgram :: FilePath -> FilePath -> IO Program
 loadProgram vertexShader fragmentShader = loadProgramMulti [vertexShader] [fragmentShader]
 
+-- | Loads and links a program from lists of vertex shader files and fragment shader files.
 loadProgramMulti :: [FilePath] -> [FilePath] -> IO Program
 loadProgramMulti vertexShaders fragmentShaders = do
     vs <- mapM readAndCompileShader vertexShaders
     fs <- mapM readAndCompileShader fragmentShaders
     createProgram vs fs
 
+-- | Sets program uniform to the given value.
+--
+--   Returns a setter function, in hopes that it would avoid subsequent calls
+--   to uniformLocation.
 setUniform :: Uniform a => Program -> String -> IO (a ->  IO ())
 setUniform program name = do
     location <- get (uniformLocation program name)
     reportErrors
     return (\val -> uniform location $= val)
 
+-- | Sets program attribute to the given value.
+--
+--   Returns a setter function, in hopes that it would avoid subsequent calls
+--   to attribLocation.
 setAttribute :: Program -> String -> IO ((IntegerHandling, VertexArrayDescriptor a) -> IO ())
 setAttribute program name = do
     location <- get (attribLocation program name)
     reportErrors
     return (\val -> vertexAttribPointer location $= val)
 
---    setUniform "BrickColor" (Color3 1.0 0.3 (0.2 :: GLfloat))
---    setUniform "MortarColor" (Color3 0.85 0.86 (0.84 :: GLfloat))
---    setUniform "BrickSize" (Vertex2 0.30 (0.15 :: GLfloat))
---    setUniform "BrickPct" (Vertex2 0.90 (0.85 :: GLfloat))
---    setUniform "LightPosition" (Vertex3 0 0 (4 :: GLfloat))
--- 
