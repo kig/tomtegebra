@@ -7,7 +7,10 @@ import Foreign.Ptr
 import Graphics.Rendering.OpenGL
 import Graphics.Rendering.Cairo hiding (rotate, identityMatrix)
 import Graphics.UI.Gtk.Gdk.Pixbuf
+import Graphics.UI.Gtk.Gdk.Events
 import Graphics.UI.Gtk.Cairo
+import Graphics.UI.Gtk.Pango.Layout
+import Graphics.UI.Gtk.Pango.Markup (Markup)
 
 useTexture :: [TextureObject] -> IO ()
 useTexture textures = do
@@ -17,11 +20,31 @@ useTexture textures = do
         textureBinding Texture2D $= Just tex) $ zip textures [0..]
     activeTexture $= TextureUnit 0
 
-loadTexture :: FilePath -> IO TextureObject
+loadTexture :: FilePath -> IO (Int,Int,TextureObject)
 loadTexture filepath = do
     assertFile filepath
-    createTexture Texture2D Enabled
-        (withImageSurfaceFromPixbuf filepath $ texImage2DSurface Nothing 0)
+    withImageSurfaceFromPixbuf filepath (\s -> do
+        (w,h) <- renderWith s $ do
+            w <- imageSurfaceGetWidth s
+            h <- imageSurfaceGetHeight s
+            return (w,h)
+        tex <- createTexture Texture2D Enabled (texImage2DSurface Nothing 0 s) 
+        return (w,h,tex))
+
+-- | Creates a non-power-of-two texture based from the given Pango text markup.
+--   See http://library.gnome.org/devel/pango/unstable/PangoMarkupFormat.html
+createTextTexture :: Markup -> IO (Int,Int,TextureObject)
+createTextTexture markup = do
+    context <- cairoCreateContext Nothing
+    layout <- layoutEmpty context
+    layoutSetMarkup layout markup
+    (Rectangle ix iy iw ih, Rectangle x y w h) <- layoutGetPixelExtents layout
+    withImageSurface FormatARGB32 (w+x) (h+y) (\s -> do
+            renderWith s (do
+                            moveTo (fromIntegral x) (fromIntegral y)
+                            showLayout layout)
+            tex <- createTexture Texture2D Disabled (texImage2DSurface Nothing 0 s)
+            return (w,h,tex))
 
 withImageSurfaceFromPixbuf :: FilePath -> (Surface -> IO a) -> IO a
 withImageSurfaceFromPixbuf filepath m = do

@@ -28,6 +28,8 @@ import RenderGame
 import Algebra
 import Graphics.UI.Gtk.General.General
 
+import Paths_tomtegebra
+
 main :: IO ()
 main = do
     initGUI
@@ -55,23 +57,35 @@ main = do
     blend $= Enabled
     blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
 
-    cursor <- createImageModel "cursor.png"
-    mushroom <- createImageModel "mushroom.png"
-    cherry <- createImageModel "cherry.png"
-    orange <- createImageModel "orange.png"
-    emptyGreen <- createImageModel "empty_green.png"
-    emptyRed <- createImageModel "empty_red.png"
-    emptyPurple <- createImageModel "empty_purple.png"
-    literal <- createImageModel "literal.png"
-    eq <- createImageModel "eq.png"
-    plusbun <- createImageModel "plusbun.png"
-    mulbun <- createImageModel "mulbun.png"
-    cat <- createImageModel "cat.png"
-    frog <- createImageModel "frog.png"
-    neutral <- createImageModel "neutral.png"
-    inverse <- createImageModel "neutral.png"
+    (_,_,cursor) <- loadImage "cursor.png"
+    (_,_,mushroom) <- loadImage "mushroom.png"
+    (_,_,cherry) <- loadImage "cherry.png"
+    (_,_,orange) <- loadImage "orange.png"
+    (_,_,emptyGreen) <- loadImage "empty_green.png"
+    (_,_,emptyRed) <- loadImage "empty_red.png"
+    (_,_,emptyPurple) <- loadImage "empty_purple.png"
+    (_,_,literal) <- loadImage "literal.png"
+    (_,_,eq) <- loadImage "eq.png"
+    (_,_,plusbun) <- loadImage "plusbun.png"
+    (_,_,mulbun) <- loadImage "mulbun.png"
+    (_,_,cat) <- loadImage "cat.png"
+    (_,_,frog) <- loadImage "frog.png"
+    (_,_,neutral) <- loadImage "neutral.png"
+    (_,_,inverse) <- loadImage "neutral.png"
 
-    state <- newIORef (initGame [(">", cursor),
+    tomtegebra <- createTextModel "<span font=\"Trebuchet MS 36\">Tomtegebra</span>"
+    pressSpace <- createTextModel "<span font=\"Trebuchet MS 24\">Press space to play</span>"
+    bothEqual <- createTextModel "<span font=\"Sans 24\">Make both sides equal</span>"
+    bindNeutral <- createTextModel "<span font=\"Sans 24\">Reduce one side to circled element</span>"
+    bindInverse <- createTextModel "<span font=\"Sans 24\">Reduce one side to mushroom's inverse</span>"
+
+    state <- newIORef (initGame [("bothEqual", bothEqual)
+                                ,("bindNeutral", bindNeutral)
+                                ,("bindInverse", bindInverse)
+                                ,("pressSpace", pressSpace)
+                                ,("title", tomtegebra)]
+                                
+                                [(">", cursor),
                                  ("A", mushroom), 
                                  ("B", cherry), 
                                  ("C", orange), 
@@ -95,6 +109,9 @@ main = do
 
     mainLoop
     destroyWindow wnd
+    where loadImage fn = do
+            dfn <- getDataFileName fn
+            createImageModel dfn
 
 exitLoop :: IO ()
 exitLoop = throwIO $ ExitException ExitSuccess
@@ -127,22 +144,24 @@ display state = do
         lookat = lookAtMatrix [0.0, -2.0, 10.0] [0.0, 3.0, 0.0] [0, 1, 0] 
         camera = matrixMul perspective lookat
         in do
---     drawBackground camera st hex
+--     drawBackground camera st (tomtegebra st)
     drawLevel camera st
     swapBuffers
 
-drawBackground :: Matrix4x4 -> AppState -> Model -> IO ()
-drawBackground cam st hex = do
+drawBackground :: Matrix4x4 -> AppState -> (Int, Int, Model) -> IO ()
+drawBackground cam st (w,h,hex) = do
     color (Color4 1 1 1 1 :: Color4 GLfloat)
-    glLoadMatrix m
+    glLoadMatrix $ matrixMul m (scalingMatrix [1, 1/ratio, 1])
     drawModel hex
     mapM_ (\i -> do
             glLoadMatrix $ matrixMul m (tm i)
             drawInstance hex ) [1..6]
     bindBuffer ArrayBuffer $= Nothing
     where t = angle st
-          m = matrixMul cam $ rotationMatrix (-t) [0.0, 0.3, 1.0]
-          tm i = translationMatrix [1.9*cos (2*pi*i/6), 1.9*sin (2*pi*i/6), 0]
+          m = matrixMul cam $ matrixMul (scalingMatrix [5,5,5]) (rotationMatrix (-t) [0.0, 0.3, 1.0])
+          tm i = matrixMul (translationMatrix [1.9*cos (2*pi*i/6), 1.9*sin (2*pi*i/6), 0])
+                           (scalingMatrix [1, 1/ratio, 1])
+          ratio = fromIntegral w / fromIntegral h
 
 reshape :: IORef AppState -> Size -> IO ()
 reshape state s@(Size w h) = do

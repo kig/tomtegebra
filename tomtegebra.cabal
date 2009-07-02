@@ -1,0 +1,28 @@
+name:                tomtegebra
+version:             0.1
+synopsis:            Tomtegebra is a small puzzle game
+description:         Tomtegebra is a small puzzle game
+category:            Game
+license:             GPL
+license-file:        LICENSE
+author:              Ilmari Heikkinen
+maintainer:          ilmari.heikkinen@gmail.com
+Cabal-Version: >= 1.2
+build-type:          Simple
+data-files: images/*.png
+
+source-repository head
+    type:     git
+    location: http://cs.helsinki.fi/u/ilmarihe/tomtegebra/.git
+
+executable tomtegebra
+    hs-source-dirs:      Tomtegebra
+    main-is:             Main.hs
+    other-modules:       Algebra, Game, RenderGame, Shaders, Models, Texture, VBO, Matrix
+    build-depends:
+        base, haskell98, bytestring, array, old-time,
+        OpenGL >= 2.2.3.0,
+        GLUT >= 2.1.2.1,
+        gtk >= 0.9.13,
+        cairo >= 0.9.13
+    ghc-options:         -O2

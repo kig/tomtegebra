@@ -24,6 +24,7 @@ data AppState = State {
 
         gameOver :: Bool,
 
+        texts :: [(String,(Int, Int, Model))],
         models :: [(String, Model)],
         angle :: GLfloat,
         width :: GLfloat,
@@ -46,10 +47,10 @@ levelBunny = Level ( "x", [(A `x` B) `eq` ((Literal 1 `f` B) `f` A)])
                   f = opf "f"
 
 
-initGame :: [(String,Model)] -> AppState
-initGame models = 
+initGame :: [(String,(Int, Int, Model))] -> [(String,Model)] -> AppState
+initGame texts models = 
     nextLevel $ State {
-        equation = (isTrue, (A `o` B) `eq` (A `o` B)),
+        equation = (isTrueC, (A `o` B) `eq` (A `o` B)),
         cursorLocation = 0,
         inventory = map (\(_,r) -> replaceABCwithXYZ r) (abelianGroup "+"),
         inventoryIndex = -1,
@@ -57,8 +58,10 @@ initGame models =
         equations = [],
         levels = [levelCat, levelFrog, levelBunny],
         gameOver = False,
-
-        models=models, angle=0, width=600, height=600, dir=1.0}
+        texts = texts,
+        models = models,
+        
+        angle=0, width=600, height=600, dir=1.0}
 
 resetCursor :: AppState -> AppState
 resetCursor sta = sta { cursorLocation = 0, inventoryIndex = -1 }

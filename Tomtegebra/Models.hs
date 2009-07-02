@@ -155,6 +155,12 @@ quadImageTexCoords = [(0,1), (0,0), (1,0), (1,1)]
 createQuadImageModel = createModel TriangleFan quadImageVerts quadImageTexCoords
 
 createImageModel fn = do
-    tex <- loadTexture fn
+    (w,h,tex) <- loadTexture fn
     q <- createQuadImageModel
-    return (q {textures = [tex]})
+    return (w,h,q {textures = [tex]})
+
+createTextModel markup = do
+    (w,h,tex) <- createTextTexture markup
+    q <- createQuadImageModel
+    return (w,h,q {textures = [tex]})
+    

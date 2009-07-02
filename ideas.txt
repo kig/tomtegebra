@@ -25,3 +25,6 @@ Further ideas
 - shop
 - lemma builder
 
+- maybe lemmas are single-use, so you need to stack up on them
+    - levels give you, say, 10x the proven axiom?
+

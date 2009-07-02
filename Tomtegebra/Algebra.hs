@@ -1,13 +1,101 @@
-{- |
-{Algebra gameplay}
+module Algebra (
+-- * Algebra gameplay
+-- $algebra_gameplay
+    isTrue,
+    isBinding,
+    opf,
+
+-- ** Group axioms
+-- $group_axioms
+    CheckableRule,
+    NamedPredicate,
+    checkCheckableRule,
+    isTrueC,
+    isNeutralC,
+    isInverseC,
+    associativity,
+    leftNeutral,
+    rightNeutral,
+    leftInverse,
+    rightInverse,
+    magma,
+    semiGroup,
+    monoid,
+    group,
+
+-- ** Abelian group
+-- $abelian_group
+    commutativity,
+    abelianGroup,
+
+-- ** Ring axioms
+-- $ring_axioms
+    leftDistributivity,
+    rightDistributivity,
+    pseudoRing,
+    ring,
+    commutativeRing,
+
+-- ** Field axioms
+-- $field_axioms
+    field,
+
+-- * Proof inventory
+-- $proof_inventory
+    ProofInventory,
+    findMatchingEqualitiesAt,
+    findMatchingEqualities,
+    matchEquality,
+    inventoryFor,
+
+-- * Expressions
+-- $expressions
+    Expr (Expr,A,B,C,X,Y,Z,Inv,Neutral,Literal),
+    Op,
+    plus,
+    o,
+
+-- ** Rules
+-- $rules
+    Rule (Rule),
+    Pattern,
+    Substitution,
+
+    ruleLength,
+    reverseRule,
+    toExpr,
+    toRule,
+    eqE,
+    eq,
+    equalityTransforms,
+    eqTrans,
+    replaceABCwithXYZ,
+
+-- ** Rewriting
+-- $rewriting
+    applyRule,
+    applyEquality,
+    mapExpr,
+    exprLength,
+    
+-- *** Indexing
+-- $indexing
+    applyRuleAt,
+    applyEqualityAt,
+    subExprAt,
+    outerMapExprWithIndex
+
+) where
+
+import Data.List hiding (group)
+
+{- $algebra_gameplay
 
 The proof gameplay consists of subsequent stages of proving group axioms
 for the function by fiddling the axiom equation to show equality or to
 bind the wanted variable.
 
 -}
-module Algebra where
-import Data.List hiding (group)
 
 -- | 'isTrue' checks whether both sides of a 'Rule' are equal.
 isTrue :: Rule -> Bool
@@ -24,144 +112,186 @@ isBinding e (Rule (a,b)) = a == b || e == a || e == b
 opf :: Op -> Expr -> Expr -> Expr
 opf op a b = Expr (op, a, b)
 
-{-
+{- $group_axioms
 Group axioms main stage:
 
-    Stability: a o b exists in G for all a, b in G
+    Stability: @a o b exists in G for all a, b in G@
+
     Magma!
 
-    Associativity: a o (b o c) = (a o b) o c
+    Associativity: @ a o (b o c) = (a o b) o c @
+    
     Semigroup!
 
-    Neutral element: a o 0 = 0 o a = a
+    Neutral element:
+    @ a o 0 = 0 o a = a @
+
     Monoid!
 
-    Inverse element: a o a_inv = a_inv o a = 0
+    Inverse element:
+    @ a o a_inv = a_inv o a = 0 @
+    
     Group! Enter Abelian bonus stage!
 -}
--- | 'CheckableRule' is a 'Rule' with a predicate function to check it.
---   E.g. (isTrue, Rule (foo, bar))
-type CheckableRule = ((Rule -> Bool), Rule)
+
+-- | 'CheckableRule' is a 'Rule' with a named predicate function to check it.
+--   E.g. (("bothEqual", isTrue), Rule (foo, bar))
+type CheckableRule = ((String, (Rule -> Bool)), Rule)
+
+-- | 'NamedPredicate' is a (name, function) -tuple.
+type NamedPredicate = (String, (Rule -> Bool))
+
+-- | 'isTrueC' is a 'NamedPredicate' named "bothEqual" that uses isTrue as its predicate.
+isTrueC :: NamedPredicate
+isTrueC = ("bothEqual", isTrue)
+
+-- | 'isNeutralC' returns the 'NamedPredicate' for the given 'Expr', named "bindNeutral" and uses isBinding expr as its predicate.
+isNeutralC :: Expr -> NamedPredicate
+isNeutralC e = ("bindNeutral", isBinding e)
+
+-- | 'isInverseC' returns the 'NamedPredicate' for the given 'Expr', named "bindInverse" and uses isBinding expr as its predicate.
+isInverseC :: Expr -> NamedPredicate
+isInverseC e = ("bindInverse", isBinding e)
 
 -- | 'checkCheckableRule' applies the predicate of a 'CheckableRule' to its 'Rule' and returns the result.
 checkCheckableRule :: CheckableRule -> Bool
-checkCheckableRule (p, rule) = p rule
+checkCheckableRule ((n,p), rule) = p rule
 
 -- | 'associativity' returns the associativity 'CheckableRule' for the given 'Op'.
 --   (a o (b o c)) = ((a o b) o c)
 associativity :: Op -> CheckableRule
-associativity op = (isTrue, (A `o` (B `o` C)) `eq` ((A `o` B) `o` C))
+associativity op = (isTrueC, (A `o` (B `o` C)) `eq` ((A `o` B) `o` C))
                   where o = opf op
 
 -- | 'rightNeutral' returns the 'CheckableRule' for the right neutral element of the given 'Op'.
 --   (a o e) = a
 rightNeutral :: Op -> CheckableRule
-rightNeutral op = (isBinding (Neutral op), (A `o` Neutral op) `eq` A)
+rightNeutral op = (isNeutralC (Neutral op), (A `o` Neutral op) `eq` A)
               where o = opf op
 
 -- | 'leftNeutral' returns the 'CheckableRule' for the left neutral element of the given 'Op'.
 --   (e o a) = a
 leftNeutral :: Op -> CheckableRule
-leftNeutral op = (isBinding (Neutral op), (Neutral op `o` A) `eq` A)
+leftNeutral op = (isNeutralC (Neutral op), (Neutral op `o` A) `eq` A)
               where o = opf op
 
 -- | 'rightInverse' returns the 'CheckableRule' for the right inverse function of the given 'Op'.
 --   (a o inv(a)) = e
 rightInverse :: Op -> CheckableRule
-rightInverse op = (isBinding (Inv (op, A)), (A `o` Inv (op, A)) `eq` Neutral op)
+rightInverse op = (isInverseC (Inv (op, A)), (A `o` Inv (op, A)) `eq` Neutral op)
               where o = opf op
 
 -- | 'leftInverse' returns the 'CheckableRule' for the left inverse function of the given 'Op'.
 --   (inv(a) o a) = e
 leftInverse :: Op -> CheckableRule
-leftInverse op = (isBinding (Inv (op, A)), (Inv (op, A) `o` A) `eq` Neutral op)
+leftInverse op = (isInverseC (Inv (op, A)), (Inv (op, A) `o` A) `eq` Neutral op)
               where o = opf op
 
-{-
+{- $abelian_group
 Abelian bonus stage:
 
-    Commutativity: a o b = b o a
+    Commutativity:
+    @a o b = b o a@
+
     Abelian group! Enter ring bonus stage!
 -}
 
 -- | 'commutativity' returns the 'CheckableRule' for the commutativity of the given 'Op'.
 --   (a o b) = (b o a)
 commutativity :: Op -> CheckableRule
-commutativity op = (isTrue, (A `o` B) `eq` (B `o` A))
+commutativity op = (isTrueC, (A `o` B) `eq` (B `o` A))
                   where o = opf op
 
 -- | 'magma' states that a function is 'G -> G -> G'. It does nothing here, how does one prove it?
+magma :: Op -> [CheckableRule]
 magma op = [] -- FIXME?
 
 -- | 'semiGroup' is a 'magma' with 'associativity'.
+semiGroup :: Op -> [CheckableRule]
 semiGroup op = magma op ++ [associativity op]
 
 -- | 'monoid' is a 'semiGroup' with 'rightNeutral' and 'leftNeutral' (that are equal.)
+monoid :: Op -> [CheckableRule]
 monoid op = semiGroup op ++ [rightNeutral op, leftNeutral op]
 
 -- | 'group' is a 'monoid' with 'rightInverse' and 'leftInverse' (that are equal.)
+group :: Op -> [CheckableRule]
 group op = monoid op ++ [rightInverse op, leftInverse op]
 
 -- | 'abelianGroup' is a 'group' with 'commutativity'.
+abelianGroup :: Op -> [CheckableRule]
 abelianGroup op = group op ++ [commutativity op]
 
 
-{-
+{- $ring_axioms
 Ring bonus stage:
 
     Show bonus function to be a semigroup!
 
     Distributivity of x over o:
-    a x (b o c) = (a x b) o (a x c)
-    (a o b) x c = (a x c) o (b x c)
+@    a x (b o c) = (a x b) o (a x c)@
+
+@    (a o b) x c = (a x c) o (b x c)@
+    
     Pseudo-ring!
+
+    Neutral element for x:
+@    a x 1 = 1 x a = a@
+
+    Ring!
+
+    Commutativity for x:
+@    a x b = b x a@
+
+    Commutative ring! Enter field bonus stage!
+
 -}
 
 -- | 'leftDistributivity' returns the 'CheckableRule' for the left distributivity of
---   'opX' over 'opO', i.e. a x (b o c) = (a x b) o (a x c).
+--   opX over opO, i.e. a x (b o c) = (a x b) o (a x c).
 leftDistributivity :: Op -> Op -> CheckableRule
-leftDistributivity opO opX = (isTrue, (A `x` (B `o` C)) `eq` ((A `x` B) `o` (A `x` C)))
+leftDistributivity opO opX = (isTrueC, (A `x` (B `o` C)) `eq` ((A `x` B) `o` (A `x` C)))
                              where o = opf opO
                                    x = opf opX
 
 -- | 'rightDistributivity' returns the 'CheckableRule' for the right distributivity of 
---   'opX' over 'opO', i.e. (a o b) x c = (a x c) o (b x c).
+--   opX over opO, i.e. (a o b) x c = (a x c) o (b x c).
 rightDistributivity :: Op -> Op -> CheckableRule
-rightDistributivity opO opX = (isTrue, ((A `o` B) `x` C) `eq` ((A `x` C) `o` (B `x` C)))
+rightDistributivity opO opX = (isTrueC, ((A `o` B) `x` C) `eq` ((A `x` C) `o` (B `x` C)))
                                where o = opf opO
                                      x = opf opX
 
 
-{-
-    Neutral element for x: a x 1 = 1 x a = a
-    Ring!
-
-    Commutativity for x: a x b = b x a
-    Commutative ring! Enter field bonus stage!
-
+{- $field_axioms
 Field bonus stage:
 
-    Inverse element for x in G \ {0}: a x a_inv = a_inv x a = 1
+    Inverse element for x in G \ {0}:
+@    a x a_inv = a_inv x a = 1@
+
     Field! Superior! Shower of jewels!
 -}
 
 
 -- | A 'pseudoRing' is an 'abelianGroup' o with a 'semiGroup' x where x is distributive over o.
+pseudoRing :: Op -> Op -> [CheckableRule]
 pseudoRing o x = abelianGroup o ++ semiGroup x ++
                  [leftDistributivity o x, rightDistributivity o x]
 
 -- | A 'ring' is a 'pseudoRing' o x with the neutral element for x.
+ring :: Op -> Op -> [CheckableRule]
 ring o x = pseudoRing o x ++ [rightNeutral x, leftNeutral x]
 
 -- | A 'commutativeRing' is a 'ring' o x with commutativity for x.
+commutativeRing :: Op -> Op -> [CheckableRule]
 commutativeRing o x = ring o x ++ [commutativity x]
 
 -- | A 'field' is a 'commutativeRing' o x with the inverse function for x 
---   (in G \ {neutral(o)}).
+--   (in G \\ {neutral(o)}).
+field :: Op -> Op -> [CheckableRule]
 field o x = commutativeRing o x ++ [rightInverse x, leftInverse x]
 
 
-{-
+{- $proof_inventory
 Whenever you show something, the equality is added to your proof inventory.
 You can use items in your proof inventory to do substitutions and other manipulations.
 You begin the game armed with +. Build it up from there.
@@ -179,17 +309,20 @@ findMatchingEqualities expr inventory = filter (matchEquality expr) inventory
 matchEquality :: Expr -> Rule -> Bool
 matchEquality e (Rule (a,b)) = matchPattern a e || matchPattern b e
 
-{-
-{Functions}
+{- $expressions
 
 Functions are composed of explicitly parenthesized binary operators and variables.
 The names of the variables are always A and B.
 
 E.g. the function
-    f a b = a + b + 1
+
+>    f a b = a + b + 1
+
 would be represented as
-    (+ (+ a b) 1)
-    Expr (Plus, (Expr (Plus, A, B), 1)
+
+@    (+ (+ a b) 1)@
+
+@    Expr (Plus, (Expr (Plus, A, B), 1)@
 
 -}
 
@@ -225,16 +358,18 @@ instance Eq Expr where
     Literal a == Literal b = a == b
     _ == _ = False
 
-{-
-{Rules}
+{- $rules
 
 The core of the gameplay is based on rewriting equations.
 To rewrite an equation, you apply a rule to an expression.
 
 E.g. the rule
-    a o b = a + b + 1
+
+>    a o b = a + b + 1
+
 would be represented as
-    rule = Rule ((Expr ("o", A, B)), (Expr ("+", Expr ("+", A, B), Literal 1)))
+
+@    rule = Rule ((Expr ("o", A, B)), (Expr ("+", Expr ("+", A, B), Literal 1)))@
 -}
 
 type Pattern = Expr
@@ -325,7 +460,7 @@ exprABCtoXYZ C = Z
 exprABCtoXYZ (Inv (o,e)) = Inv (o, exprABCtoXYZ e)
 exprABCtoXYZ e = e
 
-{-
+{- $rewriting
 
 The rewriting is done by attempting to bind the pattern to a given expression,
 and on success, evaluating the substitution in that binding.
@@ -333,10 +468,13 @@ and on success, evaluating the substitution in that binding.
 If the pattern doesn't match the expression, rewriting will return the original
 expression.
 
-E.g. applying the above rule "a o b = a + b + 1" to "((a + b) o b)"
-    applyRule rule (Expr ("o", Expr ("+", A, B), B))
+E.g. applying the above rule a o b = a + b + 1 to ((a + b) o b):
+
+@    applyRule rule (Expr ("o", Expr ("+", A, B), B))@
+
 would result in
-    Expr ("+", Expr ("+", Expr ("+", A, B), B), Literal 1)
+
+@    Expr ("+", Expr ("+", Expr ("+", A, B), B), Literal 1)@
 
 -}
 applyRule :: Rule -> Expr -> Expr
@@ -429,20 +567,25 @@ updateBinding b (Neutral _) _ = Invalid
 matchPattern :: Pattern -> Expr -> Bool
 matchPattern pat expr = not $ invalidBinding (bindPattern pat expr)
 
+plus :: Expr -> Expr -> Expr
 a `plus` b = Expr ("+", a, b)
+
+o :: Expr -> Expr -> Expr
 a `o` b = Expr ("o", a, b)
+
+eq :: Expr -> Expr -> Rule
 a `eq` b = Rule (a, b)
 
-{-
-{Indexing}
+{- $indexing
 
 To apply a rewrite rule to a particular place in an equation, you need to be
 able to index the symbols in the equation from left to right.
 
 E.g.
-    applyRuleAt 1 ((A `plus` B) `eq` (A `o` B)) ((A `plus` Literal 1) `plus` B)
-would result in
-    ((a o 1) + b) instead of ((a + 1) o b)
+
+>    applyRuleAt 1 ((A `plus` B) `eq` (A `o` B)) ((A `plus` Literal 1) `plus` B)
+
+would result in @((a o 1) + b)@ instead of @((a + 1) o b)@
 -}
 
 applyRuleAt :: Int -> Rule -> Expr -> Expr
@@ -452,6 +595,7 @@ applyRuleAt idx rule expr =
 applyEqualityAt :: Int -> Rule -> Expr -> Expr
 applyEqualityAt idx rule expr =
     outerMapExprWithIndex (\e i -> if i == idx then applyEquality rule e else e) expr
+
 {-
 
 Doing the indexed rule application with an outer map works, but isn't very

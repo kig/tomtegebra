@@ -14,6 +14,7 @@ drawVictory = putStrLn "VICTORY!!! HUZZAH!!! BANZAI!!!"
 
 type Scene = [(Matrix4x4, Model)]
 type Models = [(String, Model)]
+type Texts = [(String, (Int,Int,Model))]
 
 -- | Draws the current level (i.e. the equation and matching part of inventory)
 --   transformed by pMatrix.
@@ -24,12 +25,23 @@ drawLevel pMatrix st =
         inv = inventory st
         invIdx = inventoryIndex st in do
     drawInventory pMatrix (inventoryFor cloc equ inv) (models st) invIdx
-    drawCheckableRule pMatrix equ (models st) cloc
+    drawCheckableRule pMatrix equ (texts st) (models st) cloc
 
 -- | Draws a CheckableRule transformed by m, with the given models, equation
 --   cursor drawn at idx. Wrapper around drawRule (and drawExpr.)
-drawCheckableRule :: Matrix4x4 -> CheckableRule -> Models -> Int -> IO ()
-drawCheckableRule m (_,rule) models idx = drawRule m rule models idx
+drawCheckableRule :: Matrix4x4 -> CheckableRule -> Texts -> Models -> Int -> IO ()
+drawCheckableRule m ((name,pred),rule) texts models idx = do
+    drawName m texts name
+    drawRule m rule models idx
+
+drawName :: Matrix4x4 -> Texts -> String -> IO ()
+drawName m texts name = do
+    glLoadMatrix $ matrixMul m sm
+    drawModel model
+    where (w,h,model) = lookupOrFirst name texts
+          sm = matrixMul (scalingMatrix [0.5*ratio, 0.5, 0.5])
+                         (translationMatrix [-0.5, 2.3, 0])
+          ratio = fromIntegral w / fromIntegral h
 
 -- | Draws a Rule transformed by m, with the given models, equation
 --   cursor drawn at idx. Wrapper around drawExpr.
@@ -148,7 +160,7 @@ drawInventory camera inventory models idx = do
           rlst = reverse $ drop (idx'+1) inventory
           tlst = reverse $ take idx' inventory
           cameran = matrixMul camerat (scalingMatrix [0.66, 0.66, 0.66])
-          camerat = matrixMul camera (translationMatrix [0, 3, 0])
+          camerat = matrixMul camera (translationMatrix [0, 3.2, 0])
 
 -- | Draws an inventory entry transformed by the camera matrix.
 --   See drawInventoryRule.
