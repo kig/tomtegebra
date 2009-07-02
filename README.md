@@ -1,5 +1,7 @@
+![Black bunny](http://github.com/kig/tomtegebra/raw/master/images/mulbun.png)
+![White bunny](http://github.com/kig/tomtegebra/raw/master/images/plusbun.png)
+
 Tomtegebra is a small algebra game
-<img align="right" src="http://github.com/kig/tomtegebra/raw/master/images/mulbun.png">
 
 Install by doing:
   cabal install
