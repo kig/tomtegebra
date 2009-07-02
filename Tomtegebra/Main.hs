@@ -1,21 +1,18 @@
--- GLUT Hello World
+{- |
+    Tomtegebra is a small puzzle game (built around algebra's group axioms.)
 
--- Sets up an animated 60fps render loop with a spinning wheel.
--- The left and right arrow keys control the spin direction.
--- Press q to quit.
-
--- Demonstrates:
---   - doublebuffered drawing
---   - animation timers
---   - keyboard handling
---   - using VBOs (with an interleaved vertex & texCoord array)
---   - using Textures
+    It uses OpenGL for rendering,
+    GLUT for handling windows and events, Gdk.Pixbuf for loading images,
+    Cairo for creating textures and Pango for drawing text.
+-}
+module Main where
 
 import Control.Exception
 import Data.IORef
 import GHC.Num
 import Graphics.Rendering.OpenGL
 import Graphics.UI.GLUT
+
 import System.Exit
 import System.Time
 
@@ -28,6 +25,8 @@ import RenderGame
 import Algebra
 import Graphics.UI.Gtk.General.General
 
+-- | Sets up Gtk, GLUT and GLUT callbacks, creates the game window,
+--   sets some initial GL settings, creates a new game and goes into the main loop.
 main :: IO ()
 main = do
     initGUI
@@ -66,9 +65,11 @@ main = do
     mainLoop
     destroyWindow wnd
 
+-- | Throws an IO exception to exit the main loop.
 exitLoop :: IO ()
 exitLoop = throwIO $ ExitException ExitSuccess
 
+-- | Timer to redraw the game window at 60 Hz.
 timerProc :: IORef AppState -> IO () -> IO ()
 timerProc state m = do
     t0 <- getClockTime
@@ -77,9 +78,11 @@ timerProc state m = do
     addTimerCallback (max 1 (16 - elapsed t0 t1)) (timerProc state m)
     where elapsed t0 t1 = fromInteger (elapsedMs t0 t1) :: Int
 
+-- | Integer difference between two 'ClockTime' in milliseconds.
 elapsedMs :: ClockTime -> ClockTime -> Integer
 elapsedMs t0 t1 = (tdPicosec $ diffClockTimes t1 t0) `quotInteger` 1000000000
 
+-- | Display callback. Clears screen, sets up camera matrix and draws the game.
 display :: IORef AppState -> IO ()
 display state = do
     clear [ColorBuffer]
@@ -95,6 +98,8 @@ display state = do
         else drawLevel camera st
     swapBuffers
 
+-- | Window reshape callback. Sets viewport to new dimensions, updates the game
+--   state width and height and posts a redisplay request.
 reshape :: IORef AppState -> Size -> IO ()
 reshape state s@(Size w h) = do
     viewport $= (Position 0 0, s)
@@ -103,10 +108,14 @@ reshape state s@(Size w h) = do
     postRedisplay Nothing
 
 
+-- | Callback for keyboard and mouse events. Sends 'Down' events to 'keyDown'
+--   and 'Up' events to 'keyUp'.
 keyboardMouse :: IORef AppState -> Key -> KeyState -> Modifiers -> Position -> IO ()
 keyboardMouse appstate key Down modifiers position = keyDown appstate key
 keyboardMouse appstate key Up modifiers position = keyUp appstate key
 
+-- | Handler for keyboard 'Down' events.
+--   All the UI logic happens here.
 keyDown :: IORef AppState -> Key -> IO ()
 keyDown st (SpecialKey KeyLeft) = mapRef moveCursorLeft st
 keyDown st (SpecialKey KeyRight) = mapRef moveCursorRight st
@@ -125,10 +134,10 @@ keyDown st (Char 'f') = fullScreen
 keyDown st (Char 'q') = exitLoop
 keyDown _ _ = return ()
 
+-- | Empty handler for keyboard 'Up' events.
 keyUp :: IORef AppState -> Key -> IO ()
 keyUp _ _ = return ()
 
+-- | Maps an IORef through a function.
 mapRef :: (a -> a) -> IORef a -> IO ()
-mapRef f a = do
-    v <- get a
-    a $= f v
+mapRef f a = modifyIORef a f
