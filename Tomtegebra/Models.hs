@@ -7,6 +7,7 @@ import Matrix
 import Data.Int
 import Data.IORef
 import System.IO.Unsafe
+import Foreign.Ptr
 
 type Vert3 = (GLfloat, GLfloat, GLfloat)
 type Tex2 = (GLfloat, GLfloat)
@@ -126,6 +127,7 @@ createModel vertType verts texCoords = do
           vertsDesc = VertexArrayDescriptor 3 Float vboStride $ offset 0
           texCoordsDesc = VertexArrayDescriptor 2 Float vboStride $ offset (3*4)
           con (x,y,z) (s,t) = [x,y,z,s,t]
+          offset x = plusPtr nullPtr x
 
 hexVerts :: [(GLfloat,GLfloat,GLfloat)]
 hexVerts = map (\k -> (sin(2*pi*k/6), cos(2*pi*k/6), 0.0)) [1..6]
