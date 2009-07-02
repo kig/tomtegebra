@@ -13,7 +13,7 @@ data-files: images/*.png
 
 source-repository head
     type:     git
-    location: http://cs.helsinki.fi/u/ilmarihe/tomtegebra/.git
+    location: git://github.com/kig/tomtegebra.git
 
 executable tomtegebra
     hs-source-dirs:      Tomtegebra
