@@ -380,6 +380,12 @@ would be represented as
 type Pattern = Expr
 type Substitution = Expr
 
+-- | A Rule is a expression transformer; it binds the 'Pattern' to an 'Expr' and
+--   replaces the 'Expr' with the 'Substitution' evaluated in the aforementioned
+--   binding.
+--
+--   E.g. If you apply the rule @A = 0 + A@ to @((A + B) * C)@, you would get
+--        @0 + ((A + B) * C)@.
 data Rule = Rule (Pattern, Substitution)
 instance Show Rule where
     show (Rule (a, b)) = show a ++ " = " ++ show b
@@ -410,10 +416,18 @@ toRule _ = Nothing
 eqE :: Expr -> Expr -> Expr
 eqE a b = Expr ("=",a,b)
 
+-- | An equality transform says that the boolean binary operator \"=\" has
+--   the following property: @(A = B) = (A op C = B op C)@.
 eqTrans :: Op -> Expr -> Rule
+--   Reversed here so that term-removing side binds first, otherwise we couldn't
+--   remove added terms.
 eqTrans op c = ((X `o` c) `eqE` (Y `o` c)) `eq` (X `eqE` Y)
                where o = opf op
 
+-- | Builds the list of equality transforms for 'Expr' by creating an equality
+--   transform for each op, variable -pair in 'Expr', including variable inverses.
+--
+--   An equality transform is @(A = B) = (A op C = B op C)@.
 equalityTransforms :: Expr -> [Rule]
 equalityTransforms (Expr ("=", l, r)) =
     nub (equalityTransforms l ++ equalityTransforms r)
@@ -468,6 +482,7 @@ findMatchFromSorted (x:xs) (y:ys) | x == y = True
 findMatchFromSorted (x:xs) (y:ys) | x < y = findMatchFromSorted xs (y:ys)
 findMatchFromSorted (x:xs) (y:ys) | x > y = findMatchFromSorted (x:xs) ys
 
+-- | Replaces the A, B and C leafs in the Rule's expressions by X, Y, and Z, correspondingly.
 replaceABCwithXYZ :: Rule -> Rule
 replaceABCwithXYZ (Rule (l,r)) = Rule (mapExpr exprABCtoXYZ l, mapExpr exprABCtoXYZ r)
 
@@ -495,11 +510,17 @@ would result in
 @    Expr (\"+\", Expr (\"+\", Expr (\"+\", A, B), B), Literal 1)@
 
 -}
+
+-- | Applies the transformation 'Rule' to the expression 'Expr'.
+--   If the left side of 'Rule' doesn't bind, returns the expression unchanged.
 applyRule :: Rule -> Expr -> Expr
 applyRule (Rule (pat, sub)) expression =
     maybe expression id (evalExpr binding sub)
     where binding = bindPattern pat expression
 
+-- | Applies the two-sided transformation 'Rule' to 'Expr'.
+--   If neither side of 'Rule' doesn't bind (left side tried first), returns the
+--   expression unchanged.
 applyEquality :: Rule -> Expr -> Expr
 applyEquality r@(Rule (pat, sub)) expr =
     if matchPattern pat expr
@@ -520,10 +541,13 @@ evalExpr :: Binding -> Expr -> Maybe Expr
 evalExpr binding e | invalidBinding binding = Nothing
 evalExpr binding e = Just (mapExpr (applyBinding binding) e)
 
+-- | Structure-preserving map over Expr.
 mapExpr :: (Expr -> Expr) -> Expr -> Expr
 mapExpr f (Expr (o, l, r)) = Expr (o, mapExpr f l, mapExpr f r)
 mapExpr f x = f x
 
+-- | Length of the 'Expr'. Variables, literals, inverses and neutrals count as one.
+--   'Expr' nodes count as 1 plus the sum of the left and right sides.
 exprLength :: Expr -> Int
 exprLength (Expr (o, l, r)) = 1 + exprLength l + exprLength r
 exprLength x = 1
@@ -585,12 +609,15 @@ updateBinding b (Neutral _) _ = Invalid
 matchPattern :: Pattern -> Expr -> Bool
 matchPattern pat expr = not $ invalidBinding (bindPattern pat expr)
 
+-- |Convenience function for creating expressions, @A \`plus\` B = Expr (\"+\", a, b)@.
 plus :: Expr -> Expr -> Expr
 a `plus` b = Expr ("+", a, b)
 
+-- |Convenience function for creating expressions, @A \`o\` B = Expr (\"o\", a, b)@.
 o :: Expr -> Expr -> Expr
 a `o` b = Expr ("o", a, b)
 
+-- |Convenience function for 'Rule' creation, @A \`eq\` B = Rule (a,b)@.
 eq :: Expr -> Expr -> Rule
 a `eq` b = Rule (a, b)
 
@@ -606,10 +633,15 @@ E.g.
 would result in @((a o 1) + b)@ instead of @((a + 1) o b)@
 -}
 
+-- | Applies the transformation 'Rule' at index 'Int' in 'Expr'.
+--   If the left side of 'Rule' doesn't match 'Expr', returns 'Expr' unchanged.
 applyRuleAt :: Int -> Rule -> Expr -> Expr
 applyRuleAt idx rule expr =
     outerMapExprWithIndex (\e i -> if i == idx then applyRule rule e else e) expr
 
+-- | Applies the two-sided transformation 'Rule' at index 'Int' in 'Expr'.
+--   If neither side of 'Rule' matches 'Expr', returns 'Expr' unchanged.
+--   Left side of the 'Rule' is tried first.
 applyEqualityAt :: Int -> Rule -> Expr -> Expr
 applyEqualityAt idx rule expr =
     outerMapExprWithIndex (\e i -> if i == idx then applyEquality rule e else e) expr
@@ -625,6 +657,8 @@ work with them. Or mapAtIndex.
 
 -}
 
+-- | Returns the subexpression at index 'Int' of 'Expr'.
+--   If 'Int' is out of 'Expr' bounds, returns Nothing.
 subExprAt :: Int -> Expr -> Maybe Expr
 subExprAt idx expr = fst $ subExprAt' expr idx 0
 
@@ -641,6 +675,10 @@ subExprAt' e@(Expr (o,l,r)) idx count =
 subExprAt' e i c | i == c = (Just e, c)
 subExprAt' e i c = (Nothing, c+1)
 
+-- | Structure-altering left-to-right map over an 'Expr'.
+--
+--   If an 'Expr' node is changed before going down its right side,
+--   the right side of the new node is traversed instead.
 outerMapExprWithIndex :: (Expr -> Int -> Expr) -> Expr -> Expr
 outerMapExprWithIndex f expr = snd $ outerMapExprWithIndex' f expr 0
 
