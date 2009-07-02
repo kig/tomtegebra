@@ -1,14 +1,18 @@
-{-
-Introduction
-
-Tomtegebra is a most exciting game revolving around groups, rings and fields.
-
-The game is composed of an adventure part where you find new functions
-to prove, and the proof part where you reign over functions by showing
-them for what they really are!
+{- |
+The 'Game' module contains the game state transformations.
 -}
-
-module Game where
+module Game (
+    AppState(..),
+    newGame,
+    resetGame,
+    nextLevel,
+    nextEquation,
+    moveCursorLeft,
+    moveCursorRight,
+    scrollInventoryUp,
+    scrollInventoryDown,
+    applyCurrentRule
+) where
 import Graphics.Rendering.OpenGL (GLfloat)
 import Algebra
 import Models
@@ -16,39 +20,42 @@ import Data.IORef
 import Graphics.UI.Gtk.Pango.Layout
 import Paths_tomtegebra
 
+-- | The game state struct.
 data AppState = State {
-        equation :: CheckableRule,
-        cursorLocation :: Int,
-        inventory :: ProofInventory,
-        inventoryIndex :: Int,
-        equationCompleted :: Bool,
-        equations :: [CheckableRule],
-        levels :: [Level],
+        equation :: CheckableRule,   -- ^ Current equation
+        cursorLocation :: Int,       -- ^ Cursor location in current equation
+        inventory :: ProofInventory, -- ^ Proof inventory collected thus far
+        inventoryIndex :: Int,       -- ^ Index of the currently selected inventory item
+        equationCompleted :: Bool,   -- ^ Is the current equation complete?
+        equations :: [CheckableRule],-- ^ Equations left in the current level
+        levels :: [Level],           -- ^ Remaining levels to play
 
-        gameOver :: Bool,
+        gameOver :: Bool,            -- ^ Game over, show title screen
 
-        texts :: [(String,(Int, Int, Model))],
-        models :: [(String, Model)],
-        angle :: GLfloat,
-        width :: GLfloat,
-        height :: GLfloat,
-        dir :: GLfloat
+        texts :: [(String,(Int, Int, Model))], -- ^ Assoc list of text models (including width, height)
+        models :: [(String, Model)],           -- ^ Assoc list of equation symbol models
+        width :: GLfloat,  -- ^ Current width of the OpenGL window
+        height :: GLfloat  -- ^ Current height of the OpenGL window
     }
 
 type Rules = [Rule]
 
+-- | A Level consists of an 'Op' and its defition.
+--   The 'Op' is expanded into an Abelian group by 'nextLevel'.
 data Level = Level (Op, Rules)
 
 
+-- | Cat o is a o b = a + b + 1
 levelCat = Level ( "o", [(A `o` B) `eq` ((A `plus` B) `plus` Literal 1)] )
 
+-- | Frog f is a f b = a o 1 o b
 levelFrog = Level ( "f", [(A `f` B) `eq` ((A `o` Literal 1) `o` B)])
             where f = opf "f"
 
+-- | Bunny x is a x b = 1 f b f a
 levelBunny = Level ( "x", [(A `x` B) `eq` ((Literal 1 `f` B) `f` A)])
             where x = opf "x"
                   f = opf "f"
-
 
 initGame :: [(String,(Int, Int, Model))] -> [(String,Model)] -> AppState
 initGame texts models = 
@@ -64,8 +71,9 @@ initGame texts models =
         texts = texts,
         models = models,
         
-        angle=0, width=600, height=600, dir=1.0}
+        width=600, height=600}
 
+-- | Resets game state to start a new game.
 resetGame :: AppState -> AppState
 resetGame st = (defaultValues st) { equationCompleted = False, gameOver = False }
 
@@ -86,6 +94,7 @@ changeLevel (Level (op, rules)) sta =
     firstEquation (sta { equations = abelianGroup op,
                          inventory = inventory sta ++ map replaceABCwithXYZ rules })
 
+-- | Changes to next level.
 nextLevel :: AppState -> AppState
 nextLevel sta =
     case levels sta of
@@ -101,6 +110,8 @@ firstEquation sta =
         [] -> nextLevel sta
         x:xs -> changeEquation x sta -- no need to change equations as that's handled by nextEquation
 
+-- | Changes to next equation, or the next level if no equations are left in
+--   current level.
 nextEquation :: AppState -> AppState
 nextEquation sta =
     case equations sta of
@@ -108,9 +119,11 @@ nextEquation sta =
         [] -> nextLevel sta
         x:y:xs -> changeEquation y $ addToInventory x sta {equations = y:xs}
 
+-- | Moves the equation cursor to the left by one step.
 moveCursorLeft :: AppState -> AppState
 moveCursorLeft = moveCursor (-1)
 
+-- | Moves the equation cursor to the right by one step.
 moveCursorRight :: AppState -> AppState
 moveCursorRight = moveCursor 1
 
@@ -118,9 +131,11 @@ moveCursor :: Int -> AppState -> AppState
 moveCursor amount sta =
     sta { cursorLocation = (cursorLocation sta + amount) `mod` ruleLength (snd $ equation sta) }
 
+-- | Selects the inventory item above the current inventory item.
 scrollInventoryUp :: AppState -> AppState
 scrollInventoryUp = scrollInventory (-1)
 
+-- | Selects the inventory item below the current inventory item.
 scrollInventoryDown :: AppState -> AppState
 scrollInventoryDown = scrollInventory 1
 
@@ -130,6 +145,8 @@ scrollInventory amount sta = sta { inventoryIndex = inventoryIndex sta + amount 
 addToInventory :: CheckableRule -> AppState -> AppState
 addToInventory r sta = sta { inventory = inventory sta ++ [replaceABCwithXYZ $ snd r] }
 
+-- | Applies the currently selected inventory item to the currently selected
+--   position in the equation.
 applyCurrentRule :: AppState -> AppState
 applyCurrentRule sta =
     applyCurrentRule' sta inv cloc origEq
@@ -148,6 +165,7 @@ applyCurrentRule' sta inv cloc origEq =
           equ = maybe origEq (\s-> (fst origEq,s)) (toRule $ applyEqualityAt cloc rule equE)
 
 
+-- | Creates a new game 'AppState', loading and creating needed textures and models.
 newGame :: IO (IORef AppState)
 newGame = do
     (_,_,cursor) <- loadImage "cursor.png"
