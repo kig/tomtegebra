@@ -49,19 +49,31 @@ levelBunny = Level ( "x", [(A `x` B) `eq` ((Literal 1 `f` B) `f` A)])
 
 initGame :: [(String,(Int, Int, Model))] -> [(String,Model)] -> AppState
 initGame texts models = 
-    nextLevel $ State {
+    defaultValues $ State {
         equation = (isTrueC, (A `o` B) `eq` (A `o` B)),
         cursorLocation = 0,
-        inventory = map (\(_,r) -> replaceABCwithXYZ r) (abelianGroup "+"),
+        inventory = [],
         inventoryIndex = -1,
-        equationCompleted = False,
+        equationCompleted = True,
         equations = [],
-        levels = [levelCat, levelFrog, levelBunny],
-        gameOver = False,
+        levels = [],
+        gameOver = True,
         texts = texts,
         models = models,
         
         angle=0, width=600, height=600, dir=1.0}
+
+resetGame :: AppState -> AppState
+resetGame st = (defaultValues st) { equationCompleted = False, gameOver = False }
+
+defaultValues :: AppState -> AppState
+defaultValues st =
+    st {levels = [levelCat, levelFrog, levelBunny]
+        , cursorLocation = 0
+        , inventory = map (\(_,r) -> replaceABCwithXYZ r) (abelianGroup "+")
+        , inventoryIndex = -1
+        , equations = []}
+
 
 resetCursor :: AppState -> AppState
 resetCursor sta = sta { cursorLocation = 0, inventoryIndex = -1 }

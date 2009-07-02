@@ -93,6 +93,7 @@ setSamplers samplers =
 fillScreen :: IO ()
 fillScreen = do
     glLoadMatrix identityMatrix
+    texture Texture2D $= Disabled
     renderPrimitive TriangleFan $ mapM_ (\(x,y,z) -> vertex $ Vertex3 x y z) quadVerts
 
 drawModel :: Model -> IO ()

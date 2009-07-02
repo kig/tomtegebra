@@ -73,8 +73,9 @@ main = do
     (_,_,neutral) <- loadImage "neutral.png"
     (_,_,inverse) <- loadImage "neutral.png"
 
-    tomtegebra <- createTextModel "<span font=\"Trebuchet MS 36\">Tomtegebra</span>"
-    pressSpace <- createTextModel "<span font=\"Trebuchet MS 24\">Press space to play</span>"
+    tomtegebra <- createTextModel "<span font=\"Trebuchet MS 72\">Tomtegebra</span>"
+    pressSpace <- createTextModel "<span font=\"Trebuchet MS 48\">Press space to play</span>"
+    nextLevel <- createTextModel "<span font=\"Trebuchet MS 72\">Level complete!\n</span><span font=\"Trebuchet MS 48\">Press space to continue</span>"
     bothEqual <- createTextModel "<span font=\"Sans 24\">Make both sides equal</span>"
     bindNeutral <- createTextModel "<span font=\"Sans 24\">Reduce one side to circled element</span>"
     bindInverse <- createTextModel "<span font=\"Sans 24\">Reduce one side to mushroom's inverse</span>"
@@ -82,6 +83,7 @@ main = do
     state <- newIORef (initGame [("bothEqual", bothEqual)
                                 ,("bindNeutral", bindNeutral)
                                 ,("bindInverse", bindInverse)
+                                ,("nextLevel", nextLevel)
                                 ,("pressSpace", pressSpace)
                                 ,("title", tomtegebra)]
                                 
@@ -134,19 +136,34 @@ elapsedMs t0 t1 = (tdPicosec $ diffClockTimes t1 t0) `quotInteger` 1000000000
 
 display :: IORef AppState -> IO ()
 display state = do
-    st <- get state
-    if gameOver st then drawVictory >> exitLoop else return ()
     clear [ColorBuffer]
-    let t = angle st
-        w = width st
+    st <- get state
+    let w = width st
         h = height st
-        perspective = perspectiveMatrix 80 (w/h) 0.1 100 
-        lookat = lookAtMatrix [0.0, -2.0, 10.0] [0.0, 3.0, 0.0] [0, 1, 0] 
+        perspective = perspectiveMatrix 80 (w/h) 0.1 100
+        lookat = lookAtMatrix [0.0, -2.0, 10.0] [0.0, 3.0, 0.0] [0, 1, 0]
         camera = matrixMul perspective lookat
         in do
---     drawBackground camera st (tomtegebra st)
-    drawLevel camera st
+    if gameOver st
+        then drawTitleScreen camera st
+        else drawLevel camera st
     swapBuffers
+
+drawTitleScreen :: Matrix4x4 -> AppState -> IO ()
+drawTitleScreen camera st = do
+    glLoadMatrix tmat
+    drawModel tm
+    glLoadMatrix smat
+    drawModel sm
+    where
+        (tw,th,tm) = lookupOrFirst "title" (texts st)
+        (sw,sh,sm) = lookupOrFirst "pressSpace" (texts st)
+        tratio = (fromIntegral tw / fromIntegral th)
+        sratio = (fromIntegral sw / fromIntegral sh)
+        tmat' = matrixMul camera (scalingMatrix [10.0, 10.0 / tratio, 10.0])
+        tmat = matrixMul tmat' (translationMatrix [-0.5, 2.0, 0.0])
+        smat' = matrixMul camera (scalingMatrix [10.0, 10.0 / sratio, 10.0])
+        smat = matrixMul smat' (translationMatrix [-0.5, 0.0, 0.0])
 
 drawBackground :: Matrix4x4 -> AppState -> (Int, Int, Model) -> IO ()
 drawBackground cam st (w,h,hex) = do
@@ -183,12 +200,11 @@ keyDown st (SpecialKey KeyDown) = mapRef scrollInventoryDown st
 keyDown st (SpecialKey KeyUp) = mapRef scrollInventoryUp st
 
 keyDown st (Char ' ') = do
-    flip mapRef st (\sta ->
-        let sta' = applyCurrentRule sta in
-        if equationCompleted sta'
-            then nextEquation sta'
-            else sta')
-
+    sta <- get st
+    let sta' = if gameOver sta then nextLevel $ resetGame sta else sta
+        sta'' = if equationCompleted sta' then nextEquation sta' else applyCurrentRule sta'
+        in do
+    st $= sta''
 keyDown st (Char 'q') = exitLoop
 keyDown _ _ = return ()
 

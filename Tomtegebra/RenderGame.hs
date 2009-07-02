@@ -17,15 +17,31 @@ type Models = [(String, Model)]
 type Texts = [(String, (Int,Int,Model))]
 
 -- | Draws the current level (i.e. the equation and matching part of inventory)
---   transformed by pMatrix.
+--   transformed by camera matrix.
 drawLevel :: Matrix4x4 -> AppState -> IO ()
-drawLevel pMatrix st =
+drawLevel camera st =
     let equ = equation st
         cloc = cursorLocation st
         inv = inventory st
         invIdx = inventoryIndex st in do
-    drawInventory pMatrix (inventoryFor cloc equ inv) (models st) invIdx
-    drawCheckableRule pMatrix equ (texts st) (models st) cloc
+    drawInventory camera (inventoryFor cloc equ inv) (models st) invIdx
+    drawCheckableRule camera equ (texts st) (models st) cloc
+    if equationCompleted st
+        then drawPressSpaceToContinue camera (texts st)
+        else return ()
+
+drawPressSpaceToContinue :: Matrix4x4 -> Texts -> IO ()
+drawPressSpaceToContinue camera texts = do
+    color (Color4 1 1 1 0.8 :: Color4 GLfloat)
+    fillScreen
+    color (Color4 1 1 1 1 :: Color4 GLfloat)
+    glLoadMatrix mat
+    drawModel m
+    where (w,h,m) = lookupOrFirst "nextLevel" texts
+          ratio = fromIntegral w / fromIntegral h
+          mat' = matrixMul camera (scalingMatrix [10.0, 10.0 / ratio, 10.0])
+          mat = matrixMul mat' (translationMatrix [-0.5, 1.0, 0.0])
+          
 
 -- | Draws a CheckableRule transformed by m, with the given models, equation
 --   cursor drawn at idx. Wrapper around drawRule (and drawExpr.)
