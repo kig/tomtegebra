@@ -50,7 +50,7 @@ module Algebra (
 
 -- * Expressions
 -- $expressions
-    Expr (Expr,A,B,C,X,Y,Z,Inv,Neutral,Literal),
+    Expr (..),
     Op,
     plus,
     o,
