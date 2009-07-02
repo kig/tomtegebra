@@ -12,6 +12,9 @@ module Game where
 import Graphics.Rendering.OpenGL (GLfloat)
 import Algebra
 import Models
+import Data.IORef
+import Graphics.UI.Gtk.Pango.Layout
+import Paths_tomtegebra
 
 data AppState = State {
         equation :: CheckableRule,
@@ -143,4 +146,64 @@ applyCurrentRule' sta inv cloc origEq =
           invIdx = inventoryIndex sta `mod` length inv
           rule = inv !! invIdx
           equ = maybe origEq (\s-> (fst origEq,s)) (toRule $ applyEqualityAt cloc rule equE)
+
+
+newGame :: IO (IORef AppState)
+newGame = do
+    (_,_,cursor) <- loadImage "cursor.png"
+    (_,_,mushroom) <- loadImage "mushroom.png"
+    (_,_,cherry) <- loadImage "cherry.png"
+    (_,_,orange) <- loadImage "orange.png"
+    (_,_,emptyGreen) <- loadImage "empty_green.png"
+    (_,_,emptyRed) <- loadImage "empty_red.png"
+    (_,_,emptyPurple) <- loadImage "empty_purple.png"
+    (_,_,literal) <- loadImage "literal.png"
+    (_,_,eq) <- loadImage "eq.png"
+    (_,_,plusbun) <- loadImage "plusbun.png"
+    (_,_,mulbun) <- loadImage "mulbun.png"
+    (_,_,cat) <- loadImage "cat.png"
+    (_,_,frog) <- loadImage "frog.png"
+    (_,_,neutral) <- loadImage "neutral.png"
+    (_,_,inverse) <- loadImage "neutral.png"
+
+    tomtegebra <- createTextModel AlignCenter
+                    "<span font=\"Trebuchet MS 144\">Tomtegebra</span>"
+    pressSpace <- createTextModel AlignCenter
+                    "<span font=\"Trebuchet MS 48\">Press space to play</span>"
+    nextLevel <- createTextModel AlignCenter
+                    (  "<span font=\"Trebuchet MS 72\">Level complete!\n</span>"
+                    ++ "<span font=\"Trebuchet MS 48\">Press space to continue</span>")
+    bothEqual <- createTextModel AlignCenter
+                    "<span font=\"Sans 18\">Make both sides equal</span>"
+    bindNeutral <- createTextModel AlignCenter
+                    "<span font=\"Sans 18\">Reduce one side to the circled animal</span>"
+    bindInverse <- createTextModel AlignCenter
+                    "<span font=\"Sans 18\">Reduce one side to the circled mushroom</span>"
+
+    newIORef (initGame
+        [("bothEqual", bothEqual)
+        ,("bindNeutral", bindNeutral)
+        ,("bindInverse", bindInverse)
+        ,("nextLevel", nextLevel)
+        ,("pressSpace", pressSpace)
+        ,("title", tomtegebra)]
+
+        [(">", cursor)
+        ,("A", mushroom)
+        ,("B", cherry)
+        ,("C", orange)
+        ,("X", emptyGreen)
+        ,("Y", emptyRed)
+        ,("Z", emptyPurple)
+        ,("L", literal)
+        ,("E", neutral)
+        ,("I", inverse)
+        ,("=", eq)
+        ,("+", plusbun)
+        ,("x", mulbun)
+        ,("f", frog)
+        ,("o", cat)])
+    where loadImage fn = do
+            dfn <- getDataFileName fn
+            createImageModel dfn
 

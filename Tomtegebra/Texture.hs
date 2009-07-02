@@ -1,4 +1,17 @@
-module Texture where
+{- |
+    Helper functions for loading, creating and binding textures.
+-}
+module Texture (
+    useTexture,
+    loadTexture,
+    createTextTexture,
+    createPangoLayoutTexture,
+    withImageSurfaceFromFile,
+    withImageSurface,
+    createTexture,
+    texImage2DSurface,
+    texImage2DByteString
+) where
 import Data.ByteString (ByteString)
 import Data.ByteString.Internal (toForeignPtr)
 import Directory (doesFileExist)
@@ -12,6 +25,8 @@ import Graphics.UI.Gtk.Cairo
 import Graphics.UI.Gtk.Pango.Layout
 import Graphics.UI.Gtk.Pango.Markup (Markup)
 
+-- | Binds the given list of textures to texture units so that the nth element
+--   of the list is bound to the nth texture unit.
 useTexture :: [TextureObject] -> IO ()
 useTexture textures = do
     mapM_ (\(tex, i) -> do
@@ -20,10 +35,14 @@ useTexture textures = do
         textureBinding Texture2D $= Just tex) $ zip textures [0..]
     activeTexture $= TextureUnit 0
 
+-- | Loads a texture from an image file.
+--   Uses Gdk.Pixbuf for loading the image, so a wide range of image formats is
+--   supported, see 'withImageSurfaceFromFile'.
+--   Returns a (width, height, TextureObject)-tuple.
 loadTexture :: FilePath -> IO (Int,Int,TextureObject)
 loadTexture filepath = do
     assertFile filepath
-    withImageSurfaceFromPixbuf filepath (\s -> do
+    withImageSurfaceFromFile filepath (\s -> do
         (w,h) <- renderWith s $ do
             w <- imageSurfaceGetWidth s
             h <- imageSurfaceGetHeight s
@@ -31,9 +50,10 @@ loadTexture filepath = do
         tex <- createTexture Texture2D Enabled (texImage2DSurface Nothing 0 s) 
         return (w,h,tex))
 
--- | Creates a non-power-of-two texture based from the given Pango text markup.
+-- | Creates a non-power-of-two texture from the given Pango text markup.
 --   Returns a (width, height, TextureObject)-tuple.
---   See http://library.gnome.org/devel/pango/stable/PangoMarkupFormat.html
+--   
+--   See <http://library.gnome.org/devel/pango/stable/PangoMarkupFormat.html>
 createTextTexture :: LayoutAlignment -> Markup -> IO (Int,Int,TextureObject)
 createTextTexture alignment markup = do
     context <- cairoCreateContext Nothing
@@ -42,7 +62,7 @@ createTextTexture alignment markup = do
     layoutSetAlignment layout alignment
     createPangoLayoutTexture layout
 
--- | Creates a non-power-of-two texture based from the given Pango layout.
+-- | Creates a non-power-of-two texture from the given Pango layout.
 --   Returns a (width, height, TextureObject)-tuple.
 createPangoLayoutTexture :: PangoLayout -> IO (Int, Int, TextureObject)
 createPangoLayoutTexture layout = do
@@ -54,8 +74,13 @@ createPangoLayoutTexture layout = do
             tex <- createTexture Texture2D Disabled (texImage2DSurface Nothing 0 s)
             return (w,h,tex))
 
-withImageSurfaceFromPixbuf :: FilePath -> (Surface -> IO a) -> IO a
-withImageSurfaceFromPixbuf filepath m = do
+-- | Loads an image surface from an image file and passes it to the given function.
+--   Uses Gdk.Pixbuf for loading the image, so a wide range of image formats is
+--   supported, e.g. JPEG, PNG, GIF, TGA, TIFF, JPEG 2000, PNM, SVG, etc.
+--
+--   See Graphics.UI.Gtk.Gdk.Pixbuf.pixbufGetFormats.
+withImageSurfaceFromFile :: FilePath -> (Surface -> IO a) -> IO a
+withImageSurfaceFromFile filepath m = do
     pixbuf <- pixbufNewFromFile filepath
     w <- pixbufGetWidth pixbuf
     h <- pixbufGetHeight pixbuf
@@ -65,6 +90,7 @@ withImageSurfaceFromPixbuf filepath m = do
                              paint)
             m s)
 
+-- | Raise unless filepath exists.
 assertFile :: FilePath -> IO ()
 assertFile filepath = do
     fex <- doesFileExist filepath
@@ -72,6 +98,13 @@ assertFile filepath = do
         then fail (filepath ++ " does not exist")
         else return ()
 
+-- | Creates a new texture object for the given TextureTarget and runs the given
+--   IO () -function to initialize it.
+--   
+--   If mipmap is Enabled, sets texture min & mag filters to mipmapped linear,
+--   otherwise non-mipmapped linear.
+--   
+--   The texture wrap mode is repeated clamp on both S and T.
 createTexture :: TextureTarget -> Capability -> IO () -> IO TextureObject
 createTexture target mipmap m = do
     texture target $= Enabled
@@ -87,6 +120,7 @@ createTexture target mipmap m = do
         else return ()
     return tex
 
+-- | Loads a Cairo surface as a texture image.
 texImage2DSurface :: Maybe CubeMapTarget -> Level -> Surface -> IO ()
 texImage2DSurface cubemap level imageSurface = do
     pixelData <- imageSurfaceGetData imageSurface
@@ -94,18 +128,18 @@ texImage2DSurface cubemap level imageSurface = do
         w <- imageSurfaceGetWidth imageSurface
         h <- imageSurfaceGetHeight imageSurface
         return (fromIntegral w :: GLsizei, fromIntegral h :: GLsizei)
-    texImage2DByteString cubemap level RGBA8 w h BGRA UnsignedByte pixelData
+    texImage2DByteString cubemap level RGBA8 (TextureSize2D w h) BGRA UnsignedByte pixelData
 
+-- | Loads a ByteString as a texture image.
 texImage2DByteString :: Maybe CubeMapTarget
                      -> Level
                      -> PixelInternalFormat
-                     -> GLsizei
-                     -> GLsizei
+                     -> TextureSize2D
                      -> PixelFormat
                      -> DataType
                      -> ByteString
                      -> IO ()
-texImage2DByteString cubemap level iformat w h format ptype bytestring = do
+texImage2DByteString cubemap level iformat (TextureSize2D w h) format ptype bytestring = do
     let (fptr, foffset, flength) = toForeignPtr bytestring
     if (fromIntegral flength) /= w * h * 4
         then fail "imageSurface dimensions don't match data length"

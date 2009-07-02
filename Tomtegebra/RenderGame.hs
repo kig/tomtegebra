@@ -1,4 +1,11 @@
-module RenderGame where
+{- |
+    Functions for drawing the 'Game' state.
+-}
+module RenderGame (
+    drawTitleScreen,
+    drawLevel
+) where
+
 import Game
 import Algebra
 
@@ -9,15 +16,31 @@ import Matrix
 import VBO
 import Models
 
-drawVictory :: IO ()
-drawVictory = putStrLn "VICTORY!!! HUZZAH!!! BANZAI!!!"
 
 type Scene = [(Matrix4x4, Model)]
 type Models = [(String, Model)]
 type Texts = [(String, (Int,Int,Model))]
 
--- | Draws the current level (i.e. the equation and matching part of inventory)
---   transformed by camera matrix.
+-- | Draws the title screen of the game transformed by the camera matrix.
+--   Uses the title and pressSpace models from 'Game.texts'.
+drawTitleScreen :: Matrix4x4 -> AppState -> IO ()
+drawTitleScreen camera st = do
+    glLoadMatrix tmat
+    drawModel tm
+    glLoadMatrix smat
+    drawModel sm
+    where
+        (tw,th,tm) = lookupOrFirst "title" (texts st)
+        (sw,sh,sm) = lookupOrFirst "pressSpace" (texts st)
+        tratio = (fromIntegral tw / fromIntegral th)
+        sratio = (fromIntegral sw / fromIntegral sh)
+        tmat' = matrixMul camera (scalingMatrix [20.0, 20.0 / tratio, 20.0])
+        tmat = matrixMul tmat' (translationMatrix [-0.5, 1.0, 0.0])
+        smat' = matrixMul camera (scalingMatrix [10.0, 10.0 / sratio, 10.0])
+        smat = matrixMul smat' (translationMatrix [-0.5, 0.0, 0.0])
+
+-- | Draws the current level (i.e. the equation and inventory for current cursor
+--   position) transformed by the camera matrix.
 drawLevel :: Matrix4x4 -> AppState -> IO ()
 drawLevel camera st =
     let equ = equation st

@@ -299,13 +299,18 @@ You begin the game armed with +. Build it up from there.
 
 type ProofInventory = [Rule]
 
+-- | Finds the matching rules in an inventory for the subexpression at the given
+--   index of 'Expr'.
 findMatchingEqualitiesAt :: Int -> Expr -> ProofInventory -> ProofInventory
 findMatchingEqualitiesAt idx expr inventory =
     maybe [] (\e -> findMatchingEqualities e inventory) (subExprAt idx expr)
 
+-- | Finds the matching rules in an inventory for the given expression.
 findMatchingEqualities :: Expr -> ProofInventory -> ProofInventory
 findMatchingEqualities expr inventory = filter (matchEquality expr) inventory
 
+-- | Checks if the 'Rule' pattern matches the 'Expr'. I.e. if there's a valid
+--   binding for either side of the 'Rule' in 'Expr'
 matchEquality :: Expr -> Rule -> Bool
 matchEquality e (Rule (a,b)) = matchPattern a e || matchPattern b e
 
@@ -369,7 +374,7 @@ E.g. the rule
 
 would be represented as
 
-@    rule = Rule ((Expr ("o", A, B)), (Expr ("+", Expr ("+", A, B), Literal 1)))@
+@    rule = Rule ((Expr (\"o\", A, B)), (Expr (\"+\", Expr (\"+\", A, B), Literal 1)))@
 -}
 
 type Pattern = Expr
@@ -382,19 +387,26 @@ instance Show Rule where
 instance Eq Rule where
     Rule a == Rule b = a == b
 
+-- | The length of a 'Rule' is the sum of the lengths of its two expressions, plus one.
 ruleLength :: Rule -> Int
 ruleLength (Rule (a, b)) = exprLength a + 1 + exprLength b
 
+-- | Swaps the left and right sides of the 'Rule'.
 reverseRule :: Rule -> Rule
 reverseRule (Rule (a, b)) = Rule (b, a)
 
+-- | The 'Expr' corresponding to @'Rule' (a,b)@ is @'Expr' (\"=\",a,b)@
 toExpr :: Rule -> Expr
 toExpr (Rule (a,b)) = Expr ("=", a, b)
 
+-- | Tries to convert the given 'Expr' to a 'Rule'. Only succeeds if the
+--   expression is of form @'Expr' (\"=\", a, b)@
 toRule :: Expr -> Maybe Rule
 toRule (Expr ("=", a, b)) = Just (Rule (a, b))
 toRule _ = Nothing
 
+-- | Convenience function for creating an equality expression
+--   @a \`eqE\` b = Expr (\"=\", a, b)@
 eqE :: Expr -> Expr -> Expr
 eqE a b = Expr ("=",a,b)
 
@@ -432,7 +444,13 @@ getVariables :: Expr -> [Expr]
 getVariables (Expr (o, l, r)) = getVariables l ++ getVariables r
 getVariables x = [x]
 
-inventoryFor :: Int -> CheckableRule -> [Rule] -> [Rule]
+-- | Returns the proof inventory for the subexpression of 'CheckableRule' at
+--   the given index.
+--
+--   On a non-equality subexpression, filters the given 'ProofInventory' for
+--   matching rules. On the equality subexpression (=), returns a list of
+--   'equalityTransforms' for the 'CheckableRule'.
+inventoryFor :: Int -> CheckableRule -> ProofInventory -> ProofInventory
 inventoryFor idx (p, rule) inventory =
     filter (includeSameOp rule) unfiltered
     where subExpr = subExprAt idx (toExpr rule)
@@ -470,11 +488,11 @@ expression.
 
 E.g. applying the above rule a o b = a + b + 1 to ((a + b) o b):
 
-@    applyRule rule (Expr ("o", Expr ("+", A, B), B))@
+@    applyRule rule (Expr (\"o\", Expr (\"+\", A, B), B))@
 
 would result in
 
-@    Expr ("+", Expr ("+", Expr ("+", A, B), B), Literal 1)@
+@    Expr (\"+\", Expr (\"+\", Expr (\"+\", A, B), B), Literal 1)@
 
 -}
 applyRule :: Rule -> Expr -> Expr
