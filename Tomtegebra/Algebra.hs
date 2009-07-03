@@ -482,7 +482,7 @@ findMatchFromSorted (x:xs) (y:ys) | x == y = True
 findMatchFromSorted (x:xs) (y:ys) | x < y = findMatchFromSorted xs (y:ys)
 findMatchFromSorted (x:xs) (y:ys) | x > y = findMatchFromSorted (x:xs) ys
 
--- | Replaces the A, B and C leafs in the Rule's expressions by X, Y, and Z, correspondingly.
+-- | Replaces the A, B and C leafs in the Rule's expressions by X, Y, and Z, respectively.
 replaceABCwithXYZ :: Rule -> Rule
 replaceABCwithXYZ (Rule (l,r)) = Rule (mapExpr exprABCtoXYZ l, mapExpr exprABCtoXYZ r)
 
