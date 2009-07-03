@@ -6,12 +6,11 @@ module VBO (
 ) where
 import Foreign.Storable
 import Data.Array.Storable
-import Foreign.Ptr
 import Graphics.Rendering.OpenGL
 import Graphics.UI.GLUT (reportErrors)
 
 -- | Creates a 'BufferObject' for the given list of 'Storable' elements.
--- 
+--
 --   E.g. @my_vbo \<- createVBO [1,2,3,4::GLfloat]@
 createVBO :: Storable a => [a] -> IO BufferObject
 createVBO elems = do
@@ -24,5 +23,4 @@ createVBO elems = do
     reportErrors
     return vbo
     where ptrsize [] = toEnum 0
-          ptrsize (x:xs) = toEnum $ length elems * (sizeOf x)
-          offset x = plusPtr nullPtr x
+          ptrsize (x:_) = toEnum $ length elems * (sizeOf x)

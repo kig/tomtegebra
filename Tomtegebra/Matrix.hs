@@ -34,8 +34,8 @@ glMatrix m = newMatrix ColumnMajor $ concat m :: IO (GLmatrix GLfloat)
 
 -- | 'withMatrix' wrapper for 'withMatrix4x4'
 withMatrix4x4 :: Matrix4x4 -> (MatrixOrder -> Ptr GLfloat -> IO a) -> IO a
-withMatrix4x4 matrix m = do
-    mat <- glMatrix matrix
+withMatrix4x4 mat4 m = do
+    mat <- glMatrix mat4
     withMatrix mat m
 
 -- | The 'Matrix4x4' identity matrix.
@@ -65,6 +65,7 @@ matrix4x4To3x3 m = take 3 $ map vec4To3 m
 -- | Pads the 3x3 matrix to a 4x4 matrix with a 1 in bottom right corner and 0 elsewhere.
 matrix3x3To4x4 :: Matrix3x3 -> Matrix4x4
 matrix3x3To4x4 [x,y,z] = [x ++ [0], y ++ [0], z ++ [0], [0,0,0,1]]
+matrix3x3To4x4 m = m
 
 -- | Inverts a 4x4 orthonormal matrix with the special case trick.
 invertMatrix4x4ON :: Matrix4x4 -> Matrix4x4
@@ -80,11 +81,13 @@ invertMatrix4x4ON m = -- orthonormal matrix inverse
 -- | Creates the translation matrix that translates points by the given vector.
 translationMatrix :: Vec3 -> Matrix4x4
 translationMatrix [x,y,z] = [[1,0,0,0], [0,1,0,0], [0,0,1,0], [x,y,z,1]]
+translationMatrix _ = identityMatrix
 
 -- | Creates the scaling matrix that scales points by the factors given by the
 --   vector components.
 scalingMatrix :: Vec3 -> Matrix4x4
 scalingMatrix [x,y,z] = [[x,0,0,0], [0,y,0,0], [0,0,z,0], [0,0,0,1]]
+scalingMatrix _ = identityMatrix
 
 -- | Creates a rotation matrix from the given angle and axis.
 rotationMatrix :: GLfloat -> Vec3 -> Matrix4x4
@@ -137,26 +140,37 @@ perspectiveMatrix fovy aspect znear zfar =
     frustumMatrix xmin xmax ymin ymax znear zfar
 
 -- | Normalizes a vector to a unit vector.
+normalizeVec :: [GLfloat] -> [GLfloat]
 normalizeVec v = scaleVec (recip $ lengthVec v) v
 -- | Scales a vector by a scalar
+scaleVec :: GLfloat -> [GLfloat] -> [GLfloat]
 scaleVec s v = map ((*) s) v
 -- | Computes the length of a vector.
+lengthVec :: [GLfloat] -> GLfloat
 lengthVec v = sqrt.sum $ map square v
 
 -- | Inner product of two vectors.
+innerVec :: [GLfloat] -> [GLfloat] -> [GLfloat]
 innerVec = zipWith (*)
 -- | Adds two vectors together.
+addVec :: [GLfloat] -> [GLfloat] -> [GLfloat]
 addVec = zipWith (+)
 -- | Subtracts a vector from another.
+subVec :: [GLfloat] -> [GLfloat] -> [GLfloat]
 subVec = zipWith (-)
 -- | Negates a vector.
+negateVec :: [GLfloat] -> [GLfloat]
 negateVec = map negate
 -- | Computes the direction unit vector between two vectors.
+directionVec :: [GLfloat] -> [GLfloat] -> [GLfloat]
 directionVec u v = normalizeVec (subVec u v)
 -- | Vector dot product.
+dotVec :: [GLfloat] -> [GLfloat] -> GLfloat
 dotVec a b = sum $ innerVec a b
 -- | Cross product of two 3-vectors.
+crossVec3 :: [GLfloat] -> [GLfloat] -> [GLfloat]
 crossVec3 [u0,u1,u2] [v0,v1,v2] = [u1*v2-u2*v1, u2*v0-u0*v2, u0*v1-u1*v0]
+crossVec3 _ _ = [0,0,1]
 
 -- | Converts a 4-vector into a 3-vector by dropping the fourth element.
 vec4To3 :: Vec4 -> Vec3

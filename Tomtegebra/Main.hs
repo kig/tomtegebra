@@ -10,19 +10,14 @@ module Main where
 import Control.Exception
 import Data.IORef
 import GHC.Num
-import Graphics.Rendering.OpenGL
 import Graphics.UI.GLUT
 
 import System.Exit
 import System.Time
 
 import Matrix
-import VBO
-import Models
-import Texture
 import Game
 import RenderGame
-import Algebra
 import Graphics.UI.Gtk.General.General
 
 -- | Sets up Gtk, GLUT and GLUT callbacks, creates the game window,
@@ -43,7 +38,7 @@ main = do
             With DisplayDouble
         ]
 
-    (progname, _) <- getArgsAndInitialize
+    (_, _) <- getArgsAndInitialize
     wnd <- createWindow "Tomtegebra"
 
     clearColor $= Color4 1 1 1 1
@@ -89,9 +84,9 @@ display state = do
     st <- get state
     let w = width st
         h = height st
-        perspective = perspectiveMatrix 80 (w/h) 0.1 100
+        pmat = perspectiveMatrix 80 (w/h) 0.1 100
         lookat = lookAtMatrix [0.0, -2.0, 10.0] [0.0, 3.0, 0.0] [0, 1, 0]
-        camera = matrixMul perspective lookat
+        camera = matrixMul pmat lookat
         in do
     if gameOver st
         then drawTitleScreen camera st
@@ -111,8 +106,8 @@ reshape state s@(Size w h) = do
 -- | Callback for keyboard and mouse events. Sends 'Down' events to 'keyDown'
 --   and 'Up' events to 'keyUp'.
 keyboardMouse :: IORef AppState -> Key -> KeyState -> Modifiers -> Position -> IO ()
-keyboardMouse appstate key Down modifiers position = keyDown appstate key
-keyboardMouse appstate key Up modifiers position = keyUp appstate key
+keyboardMouse appstate key Down _ _ = keyDown appstate key
+keyboardMouse appstate key Up _ _ = keyUp appstate key
 
 -- | Handler for keyboard 'Down' events.
 --   All the UI logic happens here.
@@ -130,8 +125,8 @@ keyDown st (Char ' ') = do
         in do
     st $= sta''
 
-keyDown st (Char 'f') = fullScreen
-keyDown st (Char 'q') = exitLoop
+keyDown _ (Char 'f') = fullScreen
+keyDown _ (Char 'q') = exitLoop
 keyDown _ _ = return ()
 
 -- | Empty handler for keyboard 'Up' events.

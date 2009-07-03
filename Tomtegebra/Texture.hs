@@ -52,7 +52,7 @@ loadTexture filepath = do
 
 -- | Creates a non-power-of-two texture from the given Pango text markup.
 --   Returns a (width, height, TextureObject)-tuple.
---   
+--
 --   See <http://library.gnome.org/devel/pango/stable/PangoMarkupFormat.html>
 createTextTexture :: LayoutAlignment -> Markup -> IO (Int,Int,TextureObject)
 createTextTexture alignment markup = do
@@ -66,7 +66,7 @@ createTextTexture alignment markup = do
 --   Returns a (width, height, TextureObject)-tuple.
 createPangoLayoutTexture :: PangoLayout -> IO (Int, Int, TextureObject)
 createPangoLayoutTexture layout = do
-    (Rectangle ix iy iw ih, Rectangle x y w h) <- layoutGetPixelExtents layout
+    (_, Rectangle x y w h) <- layoutGetPixelExtents layout
     withImageSurface FormatARGB32 (w+x) (h+y) (\s -> do
             renderWith s (do
                             moveTo (fromIntegral x) (fromIntegral y)

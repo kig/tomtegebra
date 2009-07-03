@@ -1,12 +1,36 @@
 {- |
     Helpers for creating and drawing bundled models.
 -}
-module Models where
+module Models (
+    Vert3,
+    Tex2,
+    Width,
+    Height,
+    Model (..),
+    fillScreen,
+    drawModel,
+    drawInstance,
+    createImageModel,
+    createTextModel,
+    createModel,
+    getHexModel,
+    getQuadModel,
+    getTriModel,
+    getQuadImageModel,
+    hexVerts,
+    hexTexCoords,
+    quadVerts,
+    quadTexCoords,
+    triVerts,
+    triTexCoords,
+    quadImageVerts,
+    quadImageTexCoords
+) where
 
 import Graphics.Rendering.OpenGL hiding (Height)
 import VBO
 import Texture
-import Foreign.Ptr (Ptr, castPtr)
+import Foreign.Ptr
 import Matrix
 import Data.Int
 import Data.IORef
@@ -62,16 +86,16 @@ drawInstance model = drawArrays (mode model) 0 (count model)
 
 -- | Creates a model from a list of vertices and texture coords.
 createModel :: PrimitiveMode -> [Vert3] -> [Tex2] -> IO Model
-createModel vertType verts texCoords = do
-    vbo <- createVBO elems
+createModel vertType vertList texCoordList = do
+    vbo' <- createVBO elems
     return Model { mode=vertType
                  , count=fromIntegral vertCount
-                 , vbo=vbo
+                 , vbo=vbo'
                  , textures=[]
                  , verts=vertsDesc
                  , texCoords=texCoordsDesc}
-    where vertCount = min (length verts) (length texCoords)
-          elems = foldl1 (++) $ zipWith con verts texCoords
+    where vertCount = min (length vertList) (length texCoordList)
+          elems = foldl1 (++) $ zipWith con vertList texCoordList
           vboStride = 5*4
           vertsDesc = VertexArrayDescriptor 3 Float vboStride $ offset 0
           texCoordsDesc = VertexArrayDescriptor 2 Float vboStride $ offset (3*4)
@@ -84,7 +108,7 @@ hexVerts = map (\k -> (sin(2*pi*k/6), cos(2*pi*k/6), 0.0)) [1..6]
 
 -- | Texture coords for the hexagon model.
 hexTexCoords :: [(GLfloat, GLfloat)]
-hexTexCoords = map (\(x,y,z) -> ((x+1.0)*0.5, 1.0-(y+1.0)*0.5)) hexVerts
+hexTexCoords = map (\(x,y,_) -> ((x+1.0)*0.5, 1.0-(y+1.0)*0.5)) hexVerts
 
 -- | Gets a cached copy of the hexagon model.
 getHexModel :: IO Model
@@ -149,16 +173,20 @@ createTextModel alignment markup = do
 
 -- model caching
 
+imageModel :: IORef (Maybe Model)
 imageModel = unsafePerformIO (newIORef Nothing)
 {-# NOINLINE imageModel #-}
+hexModel :: IORef (Maybe Model)
 hexModel = unsafePerformIO (newIORef Nothing)
 {-# NOINLINE hexModel #-}
+triModel :: IORef (Maybe Model)
 triModel = unsafePerformIO (newIORef Nothing)
 {-# NOINLINE triModel #-}
+quadModel :: IORef (Maybe Model)
 quadModel = unsafePerformIO (newIORef Nothing)
 {-# NOINLINE quadModel #-}
 
-
+getCachedModel :: IORef (Maybe Model) -> IO Model -> IO Model
 getCachedModel ioref create = do
     im <- get ioref
     case im of

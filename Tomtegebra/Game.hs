@@ -32,8 +32,8 @@ data AppState = State {
 
         gameOver :: Bool,            -- ^ Game over, show title screen
 
-        texts :: [(String,(Int, Int, Model))], -- ^ Assoc list of text models (including width, height)
-        models :: [(String, Model)],           -- ^ Assoc list of equation symbol models
+        gameTexts :: [(String,(Int, Int, Model))], -- ^ Assoc list of text models (including width, height)
+        gameModels :: [(String, Model)],           -- ^ Assoc list of equation symbol models
         width :: GLfloat,  -- ^ Current width of the OpenGL window
         height :: GLfloat  -- ^ Current height of the OpenGL window
     }
@@ -46,13 +46,16 @@ data Level = Level (Op, Rules)
 
 
 -- | Cat o is a o b = a + b + 1
+levelCat :: Level
 levelCat = Level ( "o", [(A `o` B) `eq` ((A `plus` B) `plus` Literal 1)] )
 
 -- | Frog f is a f b = a o 1 o b
+levelFrog :: Level
 levelFrog = Level ( "f", [(A `f` B) `eq` ((A `o` Literal 1) `o` B)])
             where f = opf "f"
 
 -- | Bunny x is a x b = 1 f b f a
+levelBunny :: Level
 levelBunny = Level ( "x", [(A `x` B) `eq` ((Literal 1 `f` B) `f` A)])
             where x = opf "x"
                   f = opf "f"
@@ -68,8 +71,8 @@ initGame texts models =
         equations = [],
         levels = [],
         gameOver = True,
-        texts = texts,
-        models = models,
+        gameTexts = texts,
+        gameModels = models,
         
         width=600, height=600}
 
@@ -108,7 +111,7 @@ firstEquation :: AppState -> AppState
 firstEquation sta = 
     case equations sta of
         [] -> nextLevel sta
-        x:xs -> changeEquation x sta -- no need to change equations as that's handled by nextEquation
+        x:_ -> changeEquation x sta -- no need to change equations as that's handled by nextEquation
 
 -- | Changes to next equation, or the next level if no equations are left in
 --   current level.
@@ -149,20 +152,20 @@ addToInventory r sta = sta { inventory = inventory sta ++ [replaceABCwithXYZ $ s
 --   position in the equation.
 applyCurrentRule :: AppState -> AppState
 applyCurrentRule sta =
-    applyCurrentRule' sta inv cloc origEq
-    where inv = inventoryFor cloc origEq $ inventory sta
-          cloc = cursorLocation sta
-          origEq = equation sta
-
-applyCurrentRule' sta [] cloc origEq = sta
-applyCurrentRule' sta inv cloc origEq =
-    sta { equation = equ,
-          cursorLocation = cursorLocation sta `mod` ruleLength (snd equ),
-          equationCompleted = checkCheckableRule equ }
-    where equE = toExpr (snd origEq)
-          invIdx = inventoryIndex sta `mod` length inv
-          rule = inv !! invIdx
-          equ = maybe origEq (\s-> (fst origEq,s)) (toRule $ applyEqualityAt cloc rule equE)
+    applyCurrentRule' sta (inventoryFor cloc origEq $ inventory sta)
+    where
+        cloc = cursorLocation sta
+        origEq = equation sta
+        applyCurrentRule' sta' [] = sta'
+        applyCurrentRule' sta' inv =
+            sta' { equation = equ,
+                cursorLocation = cursorLocation sta' `mod` ruleLength (snd equ),
+                equationCompleted = checkCheckableRule equ }
+            where
+                equE = toExpr (snd origEq)
+                invIdx = inventoryIndex sta' `mod` length inv
+                rule = inv !! invIdx
+                equ = maybe origEq (\s-> (fst origEq,s)) (toRule $ applyEqualityAt cloc rule equE)
 
 
 -- | Creates a new game 'AppState', loading and creating needed textures and models.
@@ -176,7 +179,7 @@ newGame = do
     (_,_,emptyRed) <- loadImage "empty_red.png"
     (_,_,emptyPurple) <- loadImage "empty_purple.png"
     (_,_,literal) <- loadImage "literal.png"
-    (_,_,eq) <- loadImage "eq.png"
+    (_,_,eqm) <- loadImage "eq.png"
     (_,_,plusbun) <- loadImage "plusbun.png"
     (_,_,mulbun) <- loadImage "mulbun.png"
     (_,_,cat) <- loadImage "cat.png"
@@ -188,7 +191,7 @@ newGame = do
                     "<span font=\"Trebuchet MS 144\">Tomtegebra</span>"
     pressSpace <- createTextModel AlignCenter
                     "<span font=\"Trebuchet MS 48\">Press space to play</span>"
-    nextLevel <- createTextModel AlignCenter
+    nextLevelText <- createTextModel AlignCenter
                     (  "<span font=\"Trebuchet MS 72\">Level complete!\n</span>"
                     ++ "<span font=\"Trebuchet MS 48\">Press space to continue</span>")
     bothEqual <- createTextModel AlignCenter
@@ -202,7 +205,7 @@ newGame = do
         [("bothEqual", bothEqual)
         ,("bindNeutral", bindNeutral)
         ,("bindInverse", bindInverse)
-        ,("nextLevel", nextLevel)
+        ,("nextLevel", nextLevelText)
         ,("pressSpace", pressSpace)
         ,("title", tomtegebra)]
 
@@ -216,7 +219,7 @@ newGame = do
         ,("L", literal)
         ,("E", neutral)
         ,("I", inverse)
-        ,("=", eq)
+        ,("=", eqm)
         ,("+", plusbun)
         ,("x", mulbun)
         ,("f", frog)

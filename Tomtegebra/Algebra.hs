@@ -115,7 +115,7 @@ opf op a b = Expr (op, a, b)
 {- $group_axioms
 Group axioms main stage:
 
-    Stability: @a o b exists in G for all a, b in G@
+    Closure: @a o b exists in G for all a, b in G@
 
     Magma!
 
@@ -155,37 +155,37 @@ isInverseC e = ("bindInverse", isBinding e)
 
 -- | 'checkCheckableRule' applies the predicate of a 'CheckableRule' to its 'Rule' and returns the result.
 checkCheckableRule :: CheckableRule -> Bool
-checkCheckableRule ((n,p), rule) = p rule
+checkCheckableRule ((_,p), rule) = p rule
 
 -- | 'associativity' returns the associativity 'CheckableRule' for the given 'Op'.
 --   (a o (b o c)) = ((a o b) o c)
 associativity :: Op -> CheckableRule
-associativity op = (isTrueC, (A `o` (B `o` C)) `eq` ((A `o` B) `o` C))
-                  where o = opf op
+associativity op = (isTrueC, (A `ox` (B `ox` C)) `eq` ((A `ox` B) `ox` C))
+                  where ox = opf op
 
 -- | 'rightNeutral' returns the 'CheckableRule' for the right neutral element of the given 'Op'.
 --   (a o e) = a
 rightNeutral :: Op -> CheckableRule
-rightNeutral op = (isNeutralC (Neutral op), (A `o` Neutral op) `eq` A)
-              where o = opf op
+rightNeutral op = (isNeutralC (Neutral op), (A `ox` Neutral op) `eq` A)
+              where ox = opf op
 
 -- | 'leftNeutral' returns the 'CheckableRule' for the left neutral element of the given 'Op'.
 --   (e o a) = a
 leftNeutral :: Op -> CheckableRule
-leftNeutral op = (isNeutralC (Neutral op), (Neutral op `o` A) `eq` A)
-              where o = opf op
+leftNeutral op = (isNeutralC (Neutral op), (Neutral op `ox` A) `eq` A)
+              where ox = opf op
 
 -- | 'rightInverse' returns the 'CheckableRule' for the right inverse function of the given 'Op'.
 --   (a o inv(a)) = e
 rightInverse :: Op -> CheckableRule
-rightInverse op = (isInverseC (Inv (op, A)), (A `o` Inv (op, A)) `eq` Neutral op)
-              where o = opf op
+rightInverse op = (isInverseC (Inv (op, A)), (A `ox` Inv (op, A)) `eq` Neutral op)
+              where ox = opf op
 
 -- | 'leftInverse' returns the 'CheckableRule' for the left inverse function of the given 'Op'.
 --   (inv(a) o a) = e
 leftInverse :: Op -> CheckableRule
-leftInverse op = (isInverseC (Inv (op, A)), (Inv (op, A) `o` A) `eq` Neutral op)
-              where o = opf op
+leftInverse op = (isInverseC (Inv (op, A)), (Inv (op, A) `ox` A) `eq` Neutral op)
+              where ox = opf op
 
 {- $abelian_group
 Abelian bonus stage:
@@ -199,12 +199,12 @@ Abelian bonus stage:
 -- | 'commutativity' returns the 'CheckableRule' for the commutativity of the given 'Op'.
 --   (a o b) = (b o a)
 commutativity :: Op -> CheckableRule
-commutativity op = (isTrueC, (A `o` B) `eq` (B `o` A))
-                  where o = opf op
+commutativity op = (isTrueC, (A `ox` B) `eq` (B `ox` A))
+                  where ox = opf op
 
 -- | 'magma' states that a function is 'G -> G -> G'. It does nothing here, how does one prove it?
 magma :: Op -> [CheckableRule]
-magma op = [] -- FIXME?
+magma _ = [] -- FIXME?
 
 -- | 'semiGroup' is a 'magma' with 'associativity'.
 semiGroup :: Op -> [CheckableRule]
@@ -250,15 +250,15 @@ Ring bonus stage:
 -- | 'leftDistributivity' returns the 'CheckableRule' for the left distributivity of
 --   opX over opO, i.e. a x (b o c) = (a x b) o (a x c).
 leftDistributivity :: Op -> Op -> CheckableRule
-leftDistributivity opO opX = (isTrueC, (A `x` (B `o` C)) `eq` ((A `x` B) `o` (A `x` C)))
-                             where o = opf opO
+leftDistributivity opO opX = (isTrueC, (A `x` (B `ox` C)) `eq` ((A `x` B) `ox` (A `x` C)))
+                             where ox = opf opO
                                    x = opf opX
 
 -- | 'rightDistributivity' returns the 'CheckableRule' for the right distributivity of 
 --   opX over opO, i.e. (a o b) x c = (a x c) o (b x c).
 rightDistributivity :: Op -> Op -> CheckableRule
-rightDistributivity opO opX = (isTrueC, ((A `o` B) `x` C) `eq` ((A `x` C) `o` (B `x` C)))
-                               where o = opf opO
+rightDistributivity opO opX = (isTrueC, ((A `ox` B) `x` C) `eq` ((A `x` C) `ox` (B `x` C)))
+                               where ox = opf opO
                                      x = opf opX
 
 
@@ -274,21 +274,21 @@ Field bonus stage:
 
 -- | A 'pseudoRing' is an 'abelianGroup' o with a 'semiGroup' x where x is distributive over o.
 pseudoRing :: Op -> Op -> [CheckableRule]
-pseudoRing o x = abelianGroup o ++ semiGroup x ++
-                 [leftDistributivity o x, rightDistributivity o x]
+pseudoRing ox x = abelianGroup ox ++ semiGroup x ++
+                 [leftDistributivity ox x, rightDistributivity ox x]
 
 -- | A 'ring' is a 'pseudoRing' o x with the neutral element for x.
 ring :: Op -> Op -> [CheckableRule]
-ring o x = pseudoRing o x ++ [rightNeutral x, leftNeutral x]
+ring ox x = pseudoRing ox x ++ [rightNeutral x, leftNeutral x]
 
 -- | A 'commutativeRing' is a 'ring' o x with commutativity for x.
 commutativeRing :: Op -> Op -> [CheckableRule]
-commutativeRing o x = ring o x ++ [commutativity x]
+commutativeRing ox x = ring ox x ++ [commutativity x]
 
 -- | A 'field' is a 'commutativeRing' o x with the inverse function for x 
 --   (in G \\ {neutral(o)}).
 field :: Op -> Op -> [CheckableRule]
-field o x = commutativeRing o x ++ [rightInverse x, leftInverse x]
+field ox x = commutativeRing ox x ++ [rightInverse x, leftInverse x]
 
 
 {- $proof_inventory
@@ -339,15 +339,15 @@ data Expr = Expr (Op, Expr, Expr)
           | Literal Int
 
 instance Show Expr where
-    show (Expr (o,l,r)) = "("++show l++" "++o++" "++show r++")"
+    show (Expr (ox,l,r)) = "("++show l++" "++ox++" "++show r++")"
     show A = "a"
     show B = "b"
     show C = "c"
     show X = "x"
     show Y = "y"
     show Z = "z"
-    show (Inv (o,e)) = "inv("++o++","++show e++")"
-    show (Neutral o) = "e("++o++")"
+    show (Inv (ox,e)) = "inv("++ox++","++show e++")"
+    show (Neutral ox) = "e("++ox++")"
     show (Literal i) = show i
 
 instance Eq Expr where
@@ -421,8 +421,8 @@ eqE a b = Expr ("=",a,b)
 eqTrans :: Op -> Expr -> Rule
 --   Reversed here so that term-removing side binds first, otherwise we couldn't
 --   remove added terms.
-eqTrans op c = ((X `o` c) `eqE` (Y `o` c)) `eq` (X `eqE` Y)
-               where o = opf op
+eqTrans op c = ((X `ox` c) `eqE` (Y `ox` c)) `eq` (X `eqE` Y)
+               where ox = opf op
 
 -- | Builds the list of equality transforms for 'Expr' by creating an equality
 --   transform for each op, variable -pair in 'Expr', including variable inverses.
@@ -431,8 +431,8 @@ eqTrans op c = ((X `o` c) `eqE` (Y `o` c)) `eq` (X `eqE` Y)
 equalityTransforms :: Expr -> [Rule]
 equalityTransforms (Expr ("=", l, r)) =
     nub (equalityTransforms l ++ equalityTransforms r)
-equalityTransforms e@(Expr (o, l, r)) = map (eqTrans o) $ expandVars e (getUniqueVariables e)
-equalityTransforms e = []
+equalityTransforms e@(Expr (ox, _, _)) = map (eqTrans ox) $ expandVars e (getUniqueVariables e)
+equalityTransforms _ = []
 
 expandVars :: Expr -> [Expr] -> [Expr]
 expandVars expr vars = concatMap (expandVar expr) vars
@@ -442,20 +442,20 @@ expandVar expr =
     let ops = getUniqueOps expr in
     (\v -> concatMap (\op -> case v of
                                 Inv (_,v') -> [v']
-                                v -> [v, Inv (op, v)]) ops)
+                                _ -> [v, Inv (op, v)]) ops)
 
 getUniqueOps :: Expr -> [Op]
 getUniqueOps e = nub $ getOps e
 
 getOps :: Expr -> [Op]
-getOps (Expr (o, l, r)) = o : (getOps l ++ getOps r)
-getOps x = []
+getOps (Expr (ox, l, r)) = ox : (getOps l ++ getOps r)
+getOps _ = []
 
 getUniqueVariables :: Expr -> [Expr]
 getUniqueVariables e = nub $ getVariables e
 
 getVariables :: Expr -> [Expr]
-getVariables (Expr (o, l, r)) = getVariables l ++ getVariables r
+getVariables (Expr (_, l, r)) = getVariables l ++ getVariables r
 getVariables x = [x]
 
 -- | Returns the proof inventory for the subexpression of 'CheckableRule' at
@@ -465,22 +465,22 @@ getVariables x = [x]
 --   matching rules. On the equality subexpression (=), returns a list of
 --   'equalityTransforms' for the 'CheckableRule'.
 inventoryFor :: Int -> CheckableRule -> ProofInventory -> ProofInventory
-inventoryFor idx (p, rule) inventory =
+inventoryFor idx (_, rule) inventory =
     filter (includeSameOp rule) unfiltered
     where subExpr = subExprAt idx (toExpr rule)
           unfiltered = maybe [] subExprInventory subExpr
-          subExprInventory e@(Expr ("=", a, b)) = equalityTransforms e
+          subExprInventory e@(Expr ("=", _, _)) = equalityTransforms e
           subExprInventory e = findMatchingEqualities e inventory
           includeSameOp r1 r2 = findMatchFromSorted (uniqOps r1) (uniqOps r2)
           uniqOps = sort . without "=" . getUniqueOps . toExpr
           without e = filter (/= e)
 
 findMatchFromSorted :: Ord a => [a] -> [a] -> Bool
-findMatchFromSorted _ [] = False
-findMatchFromSorted [] _ = False
-findMatchFromSorted (x:xs) (y:ys) | x == y = True
-findMatchFromSorted (x:xs) (y:ys) | x < y = findMatchFromSorted xs (y:ys)
-findMatchFromSorted (x:xs) (y:ys) | x > y = findMatchFromSorted (x:xs) ys
+findMatchFromSorted (x:xs) (y:ys)
+    | x == y = True
+    | x < y = findMatchFromSorted xs (y:ys)
+    | x > y = findMatchFromSorted (x:xs) ys
+findMatchFromSorted _ _ = False
 
 -- | Replaces the A, B and C leafs in the Rule's expressions by X, Y, and Z, respectively.
 replaceABCwithXYZ :: Rule -> Rule
@@ -490,7 +490,7 @@ exprABCtoXYZ :: Expr -> Expr
 exprABCtoXYZ A = X
 exprABCtoXYZ B = Y
 exprABCtoXYZ C = Z
-exprABCtoXYZ (Inv (o,e)) = Inv (o, exprABCtoXYZ e)
+exprABCtoXYZ (Inv (ox,e)) = Inv (ox, exprABCtoXYZ e)
 exprABCtoXYZ e = e
 
 {- $rewriting
@@ -522,7 +522,7 @@ applyRule (Rule (pat, sub)) expression =
 --   If neither side of 'Rule' doesn't bind (left side tried first), returns the
 --   expression unchanged.
 applyEquality :: Rule -> Expr -> Expr
-applyEquality r@(Rule (pat, sub)) expr =
+applyEquality r@(Rule (pat, _)) expr =
     if matchPattern pat expr
         then applyRule r expr
         else applyRule (reverseRule r) expr
@@ -538,19 +538,19 @@ invalidBinding Invalid = True
 invalidBinding _ = False
 
 evalExpr :: Binding -> Expr -> Maybe Expr
-evalExpr binding e | invalidBinding binding = Nothing
+evalExpr binding _ | invalidBinding binding = Nothing
 evalExpr binding e = Just (mapExpr (applyBinding binding) e)
 
 -- | Structure-preserving map over Expr.
 mapExpr :: (Expr -> Expr) -> Expr -> Expr
-mapExpr f (Expr (o, l, r)) = Expr (o, mapExpr f l, mapExpr f r)
+mapExpr f (Expr (ox, l, r)) = Expr (ox, mapExpr f l, mapExpr f r)
 mapExpr f x = f x
 
 -- | Length of the 'Expr'. Variables, literals, inverses and neutrals count as one.
 --   'Expr' nodes count as 1 plus the sum of the left and right sides.
 exprLength :: Expr -> Int
-exprLength (Expr (o, l, r)) = 1 + exprLength l + exprLength r
-exprLength x = 1
+exprLength (Expr (_, l, r)) = 1 + exprLength l + exprLength r
+exprLength _ = 1
 
 applyBinding :: Binding -> Expr -> Expr
 applyBinding (Binding (Just a,_,_,_,_,_)) A = a
@@ -604,7 +604,7 @@ updateBinding b (Expr (op, pl, pr)) (Expr (ope, el, er)) | op == ope =
 updateBinding _ (Expr _) _ = Invalid
 
 updateBinding b (Neutral op) (Neutral ope) | op == ope = b
-updateBinding b (Neutral _) _ = Invalid
+updateBinding _ (Neutral _) _ = Invalid
 
 matchPattern :: Pattern -> Expr -> Bool
 matchPattern pat expr = not $ invalidBinding (bindPattern pat expr)
@@ -664,16 +664,16 @@ subExprAt idx expr = fst $ subExprAt' expr idx 0
 
 subExprAt' :: Expr -> Int -> Int -> (Maybe Expr, Int)
 subExprAt' _ i c | c > i = (Nothing, 0)
-subExprAt' e@(Expr (o,l,r)) idx count =
+subExprAt' e@(Expr (_,l,r)) idx count =
     let (mex, c) = subExprAt' l idx count in
     case mex of
-        Just ex -> (mex,c)
+        Just _ -> (mex,c)
         Nothing ->
             if c == idx
                 then (Just e, c)
                 else subExprAt' r idx (c+1)
 subExprAt' e i c | i == c = (Just e, c)
-subExprAt' e i c = (Nothing, c+1)
+subExprAt' _ _ c = (Nothing, c+1)
 
 -- | Structure-altering left-to-right map over an 'Expr'.
 --
@@ -683,9 +683,9 @@ outerMapExprWithIndex :: (Expr -> Int -> Expr) -> Expr -> Expr
 outerMapExprWithIndex f expr = snd $ outerMapExprWithIndex' f expr 0
 
 outerMapExprWithIndex' :: (Expr -> Int -> Expr) -> Expr -> Int -> (Int, Expr)
-outerMapExprWithIndex' f (Expr (o,a,b)) c =
+outerMapExprWithIndex' f (Expr (ox,a,b)) c =
     let (c', left) = outerMapExprWithIndex' f a c in
-    let (c'', expr) = (c'+1, f (Expr (o, left, b)) c') in
+    let (c'', expr) = (c'+1, f (Expr (ox, left, b)) c') in
     case expr of
         Expr (o',left',b') -> let (c''', right) = outerMapExprWithIndex' f b' c'' in
                            (c''', Expr (o', left', right))

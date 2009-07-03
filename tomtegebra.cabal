@@ -25,4 +25,4 @@ executable tomtegebra
         GLUT >= 2.1.2.1,
         gtk >= 0.9.13,
         cairo >= 0.9.13
-    ghc-options:         -O2
+    ghc-options:         -O2 -Wall
