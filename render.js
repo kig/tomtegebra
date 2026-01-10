@@ -95,61 +95,88 @@ class Renderer {
     }
 
     drawEquation(state) {
-        const centerX = this.canvas.width / 2;
-        const centerY = 250;
-        const itemSize = 60;
-        const spacing = 70;
-        
         const expr = state.equation.rule.toExpr();
-        const items = this.exprToDrawList(expr);
+        const items = this.exprToDrawListWithDepth(expr);
+        
+        // Calculate scaling based on number of items
+        // Baseline: 5 symbols fit comfortably, scale down if more
+        const baseItemSize = 60;
+        const baseSpacing = 70;
+        const baseSymbolCount = 5;
+        const maxWidth = this.canvas.width - 100; // Leave margin
+        
+        let itemSize = baseItemSize;
+        let spacing = baseSpacing;
+        
+        if (items.length > baseSymbolCount) {
+            const scaleFactor = Math.min(1, baseSymbolCount / items.length);
+            itemSize = baseItemSize * scaleFactor;
+            spacing = baseSpacing * scaleFactor;
+        }
+        
+        // Find max depth for vertical positioning
+        const maxDepth = Math.max(...items.map(item => item.depth));
+        
+        // Calculate positions
+        const centerX = this.canvas.width / 2;
+        const baseY = 200; // Base Y position
+        const depthOffset = 40; // Vertical offset per depth level
         
         const totalWidth = items.length * spacing;
         let x = centerX - totalWidth / 2;
         
         items.forEach((item, idx) => {
+            // Calculate Y position based on depth (arguments are lower)
+            const y = baseY + item.depth * depthOffset;
+            
             // Draw cursor
             if (idx === state.cursorLocation && this.images['cursor']) {
-                this.ctx.drawImage(this.images['cursor'], x - 5, centerY - itemSize / 2 - 10, 
-                                 itemSize + 10, itemSize + 10);
+                this.ctx.drawImage(this.images['cursor'], 
+                    x - 5, y - itemSize / 2 - 10, 
+                    itemSize + 10, itemSize + 10);
             }
             
             // Draw item
             if (this.images[item.symbol]) {
-                this.ctx.drawImage(this.images[item.symbol], x, centerY - itemSize / 2, 
-                                 itemSize, itemSize);
+                this.ctx.drawImage(this.images[item.symbol], 
+                    x, y - itemSize / 2, 
+                    itemSize, itemSize);
             } else {
                 // Fallback: draw text
                 this.ctx.fillStyle = '#333';
-                this.ctx.font = 'bold 24px monospace';
+                this.ctx.font = `bold ${Math.floor(24 * (itemSize / baseItemSize))}px monospace`;
                 this.ctx.textAlign = 'center';
-                this.ctx.fillText(item.symbol, x + itemSize / 2, centerY + 10);
+                this.ctx.fillText(item.symbol, x + itemSize / 2, y + 10);
             }
             
             // Draw literal number
             if (item.number !== null) {
                 this.ctx.fillStyle = '#000';
-                this.ctx.font = 'bold 20px sans-serif';
+                this.ctx.font = `bold ${Math.floor(20 * (itemSize / baseItemSize))}px sans-serif`;
                 this.ctx.textAlign = 'center';
-                this.ctx.fillText(item.number, x + itemSize / 2, centerY + itemSize / 2 + 5);
+                this.ctx.fillText(item.number, x + itemSize / 2, y + itemSize / 2 + 5);
             }
             
             x += spacing;
         });
     }
 
-    exprToDrawList(expr, list = []) {
+    exprToDrawListWithDepth(expr, depth = 0, list = []) {
         if (expr.type === 'Op') {
-            this.exprToDrawList(expr.args[1], list);
-            list.push({ symbol: expr.args[0], number: null });
-            this.exprToDrawList(expr.args[2], list);
+            // Left argument is drawn at depth + 1
+            this.exprToDrawListWithDepth(expr.args[1], depth + 1, list);
+            // Operator is drawn at current depth
+            list.push({ symbol: expr.args[0], number: null, depth: depth });
+            // Right argument is drawn at depth + 1
+            this.exprToDrawListWithDepth(expr.args[2], depth + 1, list);
         } else if (expr.type === 'Literal') {
-            list.push({ symbol: 'L', number: expr.args[0] });
+            list.push({ symbol: 'L', number: expr.args[0], depth: depth });
         } else if (expr.type === 'Neutral') {
-            list.push({ symbol: 'E', number: null });
+            list.push({ symbol: 'E', number: null, depth: depth });
         } else if (expr.type === 'Inv') {
-            list.push({ symbol: 'I', number: null });
+            list.push({ symbol: 'I', number: null, depth: depth });
         } else {
-            list.push({ symbol: expr.type, number: null });
+            list.push({ symbol: expr.type, number: null, depth: depth });
         }
         return list;
     }
