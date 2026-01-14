@@ -119,7 +119,7 @@ class Renderer {
         
         // Calculate positions
         const centerX = this.canvas.width / 2;
-        const baseY = 200; // Base Y position
+        const baseY = 80; // Start just below instruction text (at y=30)
         const depthOffset = 40; // Vertical offset per depth level
         
         const totalWidth = items.length * spacing;
@@ -159,6 +159,10 @@ class Renderer {
             
             x += spacing;
         });
+        
+        // Calculate and store the bottom of the equation tree for inventory positioning
+        const equationBottom = baseY + maxDepth * depthOffset + itemSize / 2 + 20;
+        state._equationBottom = equationBottom;
     }
 
     exprToDrawListWithDepth(expr, depth = 0, list = []) {
@@ -182,7 +186,8 @@ class Renderer {
     }
 
     drawInventory(state) {
-        const startY = 350;
+        // Position inventory below the equation tree
+        const startY = Math.max(280, state._equationBottom || 280);
         const itemHeight = 30;
         const maxVisible = 5;
         
