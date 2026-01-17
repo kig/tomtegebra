@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tomtegebra Algebra.js Test Suite</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            margin: 0;
+        }
+        
+        h1 {
+            color: #4ec9b0;
+            border-bottom: 2px solid #4ec9b0;
+            padding-bottom: 10px;
+        }
+        
+        #output {
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 20px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.5;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .success {
+            color: #4ec9b0;
+        }
+        
+        .error {
+            color: #f48771;
+        }
+        
+        .info {
+            color: #9cdcfe;
+        }
+        
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        #status.success {
+            background: #1e3a1e;
+            border: 2px solid #4ec9b0;
+            color: #4ec9b0;
+        }
+        
+        #status.failure {
+            background: #3a1e1e;
+            border: 2px solid #f48771;
+            color: #f48771;
+        }
+        
+        .button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        
+        .button:hover {
+            background: #1177bb;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tomtegebra Algebra.js Test Suite</h1>
+    <p class="info">Testing JavaScript algebra implementation against Haskell Algebra.hs</p>
+    
+    <div>
+        <button class="button" onclick="location.reload()">Rerun Tests</button>
+        <button class="button" onclick="clearOutput()">Clear Output</button>
+    </div>
+    
+    <div id="status">Running tests...</div>
+    <div id="output"></div>
+    
+    <script src="algebra.js"></script>
+    <script src="test-algebra.js"></script>
+    <script>
+        const outputDiv = document.getElementById('output');
+        const statusDiv = document.getElementById('status');
+        
+        // Capture console output
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        console.log = function(...args) {
+            const message = args.join(' ');
+            const span = document.createElement('span');
+            
+            if (message.includes('✓') || message.includes('PASS') || message.includes('SUCCESS')) {
+                span.className = 'success';
+            } else if (message.includes('✗') || message.includes('FAIL') || message.includes('ERROR')) {
+                span.className = 'error';
+            } else {
+                span.className = 'info';
+            }
+            
+            span.textContent = message + '\n';
+            outputDiv.appendChild(span);
+            outputDiv.scrollTop = outputDiv.scrollHeight;
+            
+            originalLog.apply(console, args);
+        };
+        
+        console.error = function(...args) {
+            const message = args.join(' ');
+            const span = document.createElement('span');
+            span.className = 'error';
+            span.textContent = message + '\n';
+            outputDiv.appendChild(span);
+            outputDiv.scrollTop = outputDiv.scrollHeight;
+            
+            originalError.apply(console, args);
+        };
+        
+        function clearOutput() {
+            outputDiv.innerHTML = '';
+        }
+        
+        // Run tests after page loads
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const success = runAllTests();
+                
+                if (success) {
+                    statusDiv.textContent = '✓ All tests passed!';
+                    statusDiv.className = 'success';
+                } else {
+                    statusDiv.textContent = '✗ Some tests failed - see output below';
+                    statusDiv.className = 'failure';
+                }
+            }, 100);
+        });
+    </script>
+</body>
+</html>

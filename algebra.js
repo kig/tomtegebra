@@ -1,7 +1,12 @@
 // Algebra.js - Port of Algebra.hs
 // Handles expression manipulation and rules
 
-// Expression types
+// Haskell source:
+// data Expr = Expr (Op, Expr, Expr)
+//           | A | B | C | X | Y | Z
+//           | Inv (Op, Expr)
+//           | Neutral Op
+//           | Literal Int
 class Expr {
     constructor(type, ...args) {
         this.type = type;
@@ -67,7 +72,8 @@ function Neutral(op) {
     return new Expr('Neutral', op);
 }
 
-// Rule class
+// Haskell source:
+// data Rule = Rule (Pattern, Substitution)
 class Rule {
     constructor(left, right) {
         this.left = left;
@@ -144,9 +150,13 @@ class Binding {
     }
 }
 
+// Haskell source:
+// matchPattern :: Pattern -> Expr -> Bool
+// matchPattern pat expr = not $ invalidBinding (bindPattern pat expr)
 function matchPattern(pattern, expr) {
     const binding = new Binding();
-    return matchPatternHelper(pattern, expr, binding) ? binding : null;
+    const matches = matchPatternHelper(pattern, expr, binding);
+    return matches && !binding.invalid;
 }
 
 function matchPatternHelper(pattern, expr, binding) {
@@ -181,24 +191,47 @@ function matchPatternHelper(pattern, expr, binding) {
     return false;
 }
 
-// Apply rule to expression
+// Internal function that returns binding for applyRule
+function bindPattern(pattern, expr) {
+    const binding = new Binding();
+    matchPatternHelper(pattern, expr, binding);
+    return binding;
+}
+
+// Haskell source:
+// applyRule :: Rule -> Expr -> Expr
+// applyRule (Rule (pat, sub)) expression =
+//     maybe expression id (evalExpr binding sub)
+//     where binding = bindPattern pat expression
 function applyRule(rule, expr) {
-    const binding = matchPattern(rule.left, expr);
-    if (binding && !binding.invalid) {
-        return binding.apply(rule.right);
+    const binding = bindPattern(rule.left, expr);
+    if (!binding.invalid) {
+        const result = binding.apply(rule.right);
+        if (result !== null) {
+            return result;
+        }
     }
     return expr.clone();
 }
 
+// Haskell source:
+// applyEquality :: Rule -> Expr -> Expr
+// applyEquality r@(Rule (pat, _)) expr =
+//     if matchPattern pat expr
+//         then applyRule r expr
+//         else applyRule (reverseRule r) expr
 function applyEquality(rule, expr) {
-    let result = applyRule(rule, expr);
-    if (result.equals(expr)) {
-        result = applyRule(rule.reverse(), expr);
+    if (matchPattern(rule.left, expr)) {
+        return applyRule(rule, expr);
+    } else {
+        return applyRule(rule.reverse(), expr);
     }
-    return result;
 }
 
-// Apply rule at a specific index
+// Haskell source:
+// applyEqualityAt :: Int -> Rule -> Expr -> Expr
+// applyEqualityAt idx rule expr =
+//     outerMapExprWithIndex (\e i -> if i == idx then applyEquality rule e else e) expr
 function applyEqualityAt(idx, rule, expr) {
     let currentIdx = 0;
     
@@ -228,7 +261,8 @@ function applyEqualityAt(idx, rule, expr) {
     return applyAtIndex(expr);
 }
 
-// Get subexpression at index
+// Haskell source:
+// subExprAt :: Int -> Expr -> Maybe Expr
 function subExprAt(idx, expr) {
     let currentIdx = 0;
     
@@ -257,16 +291,26 @@ function subExprAt(idx, expr) {
     return findAtIndex(expr);
 }
 
-// Check if rule is true
+// Haskell source:
+// isTrue :: Rule -> Bool
+// isTrue (Rule (a,b)) = a == b
 function isTrue(rule) {
     return rule.left.equals(rule.right);
 }
 
+// Haskell source:
+// isBinding :: Expr -> Rule -> Bool
+// isBinding e (Rule (a,b)) = a == b || e == a || e == b
 function isBinding(expr, rule) {
     return isTrue(rule) || rule.left.equals(expr) || rule.right.equals(expr);
 }
 
-// Replace ABC with XYZ
+// Haskell source:
+// replaceABCwithXYZ :: Rule -> Rule
+// replaceABCwithXYZ (Rule (l,r)) = Rule (mapExpr exprABCtoXYZ l, mapExpr exprABCtoXYZ r)
+// exprABCtoXYZ A = X
+// exprABCtoXYZ B = Y
+// exprABCtoXYZ C = Z
 function replaceABCwithXYZ(rule) {
     function replace(expr) {
         if (expr.type === 'A') return X;
@@ -284,44 +328,66 @@ function replaceABCwithXYZ(rule) {
     return new Rule(replace(rule.left), replace(rule.right));
 }
 
-// Group axioms
+// Haskell source:
+// associativity :: Op -> CheckableRule
+// associativity op = (isTrueC, (A `ox` (B `ox` C)) `eq` ((A `ox` B) `ox` C))
 function associativity(op) {
     const left = Op(op, A, Op(op, B, C));
     const right = Op(op, Op(op, A, B), C);
     return { predicate: 'bothEqual', rule: new Rule(left, right) };
 }
 
+// Haskell source:
+// rightNeutral :: Op -> CheckableRule
+// rightNeutral op = (isNeutralC (Neutral op), (A `ox` Neutral op) `eq` A)
 function rightNeutral(op) {
     const left = Op(op, A, Neutral(op));
     const right = A;
     return { predicate: 'bindNeutral', rule: new Rule(left, right), expr: Neutral(op) };
 }
 
+// Haskell source:
+// leftNeutral :: Op -> CheckableRule
+// leftNeutral op = (isNeutralC (Neutral op), (Neutral op `ox` A) `eq` A)
 function leftNeutral(op) {
     const left = Op(op, Neutral(op), A);
     const right = A;
     return { predicate: 'bindNeutral', rule: new Rule(left, right), expr: Neutral(op) };
 }
 
+// Haskell source:
+// rightInverse :: Op -> CheckableRule
+// rightInverse op = (isInverseC (Inv (op, A)), (A `ox` Inv (op, A)) `eq` Neutral op)
 function rightInverse(op) {
     const left = Op(op, A, Inv(op, A));
     const right = Neutral(op);
     return { predicate: 'bindInverse', rule: new Rule(left, right), expr: Inv(op, A) };
 }
 
+// Haskell source:
+// leftInverse :: Op -> CheckableRule
+// leftInverse op = (isInverseC (Inv (op, A)), (Inv (op, A) `ox` A) `eq` Neutral op)
 function leftInverse(op) {
     const left = Op(op, Inv(op, A), A);
     const right = Neutral(op);
     return { predicate: 'bindInverse', rule: new Rule(left, right), expr: Inv(op, A) };
 }
 
+// Haskell source:
+// commutativity :: Op -> CheckableRule
+// commutativity op = (isTrueC, (A `ox` B) `eq` (B `ox` A))
 function commutativity(op) {
     const left = Op(op, A, B);
     const right = Op(op, B, A);
     return { predicate: 'bothEqual', rule: new Rule(left, right) };
 }
 
-// Build Abelian group axioms
+// Haskell source:
+// abelianGroup :: Op -> [CheckableRule]
+// abelianGroup op = group op ++ [commutativity op]
+// group op = monoid op ++ [rightInverse op, leftInverse op]
+// monoid op = semiGroup op ++ [rightNeutral op, leftNeutral op]
+// semiGroup op = magma op ++ [associativity op]
 function abelianGroup(op) {
     return [
         associativity(op),
